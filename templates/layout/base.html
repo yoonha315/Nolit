@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>놀잇 NOLIT</title>
+
+    <!-- 전역 CSS -->
+    {% block style %}
+        <link rel="stylesheet" href="{% static 'css/global.css' %}">
+    {% endblock style %}
+</head>
+<body>
+
+    <!-- 네비게이션 -->
+    {% include 'layout/navbar.html' %}
+
+    <!-- 본문 -->
+    {% block content %}{% endblock content %}
+
+    <!-- 전역 스크립트 -->
+    <script src="{% static 'js/global.js' %}"></script>
+
+    <!-- 페이지별 스크립트 -->
+    {% block script %}{% endblock script %}
+
+</body>
+</html>

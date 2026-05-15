@@ -1,0 +1,23 @@
+{% load static %}
+<nav class="topnav">
+    <a href="{% url 'recommender:home' %}" class="topnav-logo">
+        NOLIT <span class="logo-pip"></span>
+        <span class="topnav-sub">놀잇 · AI 여가 추천</span>
+    </a>
+
+    <div class="topnav-links">
+        <a href="{% url 'recommender:ai' %}"      class="{% if current_page == 'ai'      %}active{% endif %}">AI 추천</a>
+        <a href="{% url 'recommender:explore' %}"  class="{% if current_page == 'explore'  %}active{% endif %}">탐색하기</a>
+        <a href="{% url 'recommender:persona' %}"  class="{% if current_page == 'persona'  %}active{% endif %}">설정</a>
+
+        <span class="topnav-divider"></span>
+
+        {% if user.is_authenticated %}
+            <span class="topnav-username">{{ user.username }}</span>
+            <a href="{% url 'accounts:logout' %}" class="nav-btn-logout">로그아웃</a>
+        {% else %}
+            <a href="{% url 'accounts:login' %}"  class="nav-btn-login  {% if current_page == 'login'  %}active{% endif %}">로그인</a>
+            <a href="{% url 'accounts:signup' %}" class="nav-btn-signup {% if current_page == 'signup' %}active{% endif %}">회원가입</a>
+        {% endif %}
+    </div>
+</nav>

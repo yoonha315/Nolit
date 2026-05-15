@@ -1,0 +1,126 @@
+{% extends 'layout/base.html' %}
+
+{% block style %}
+{{ block.super }}
+<style>
+    .filter-row {
+        display: flex; gap: 12px; align-items: center;
+        flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .filter-row select, .filter-row input[type="text"] {
+        width: auto; min-width: 160px;
+    }
+    .filter-row input[type="text"] { min-width: 240px; }
+    .filter-btn {
+        background: var(--orange); color: #fff;
+        border: none; border-radius: var(--radius);
+        padding: 10px 20px; font-family: 'Nunito', sans-serif;
+        font-weight: 700; font-size: 14px; cursor: pointer;
+        transition: background 0.15s;
+    }
+    .filter-btn:hover { background: var(--orange-dim); }
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+    .activity-card {
+        background: #FFFFFF; border: 1px solid var(--border);
+        border-radius: var(--radius-lg); padding: 22px;
+        box-shadow: var(--shadow-sm); transition: all 0.2s ease;
+    }
+    .activity-card:hover {
+        box-shadow: 0 6px 24px rgba(255,107,0,0.12);
+        transform: translateY(-2px);
+    }
+    .cat-icon {
+        width: 40px; height: 40px; background: #E6FAF8;
+        border-radius: 10px; display: flex; align-items: center;
+        justify-content: center; font-size: 1.3rem; flex-shrink: 0;
+    }
+    .result-count {
+        color: #7A7469; font-size: 12px; margin-bottom: 20px;
+        font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="page-container">
+    <div style="padding: 32px 0 16px">
+        <h2 style="font-size:1.6rem; margin-bottom:6px">카테고리 탐색</h2>
+        <p style="color:#7A7469; font-size:13.5px; margin:0">
+            다양한 여가 활동을 둘러보고 그룹에 맞는 선택을 찾아보세요.
+        </p>
+    </div>
+
+    <!-- 필터 -->
+    <form method="get" action="{% url 'recommender:explore' %}">
+        <div class="filter-row">
+            <select name="category">
+                <option value="all"  {% if sel_category == 'all'      %}selected{% endif %}>전체</option>
+                <option value="escape"    {% if sel_category == 'escape'   %}selected{% endif %}>🔐 방탈출</option>
+                <option value="boardgame" {% if sel_category == 'boardgame'%}selected{% endif %}>🎲 보드게임</option>
+                <option value="murder"    {% if sel_category == 'murder'   %}selected{% endif %}>🕵️ 머더미스터리</option>
+                <option value="crime"     {% if sel_category == 'crime'    %}selected{% endif %}>🔍 크라임씬</option>
+            </select>
+            <input type="text" name="search" placeholder="🔎  제목이나 태그로 검색..." value="{{ sel_search }}">
+            <select name="difficulty">
+                <option value=""   {% if sel_difficulty == ''      %}selected{% endif %}>모든 난이도</option>
+                <option value="입문" {% if sel_difficulty == '입문'  %}selected{% endif %}>입문</option>
+                <option value="중"  {% if sel_difficulty == '중'   %}selected{% endif %}>중</option>
+                <option value="중급" {% if sel_difficulty == '중급' %}selected{% endif %}>중급</option>
+                <option value="중상" {% if sel_difficulty == '중상' %}selected{% endif %}>중상</option>
+                <option value="고급" {% if sel_difficulty == '고급' %}selected{% endif %}>고급</option>
+            </select>
+            <button type="submit" class="filter-btn">검색</button>
+        </div>
+    </form>
+
+    <p class="result-count">{{ total }}개 결과</p>
+
+    {% if activities %}
+    <div class="cards-grid">
+        {% for act in activities %}
+        <div class="activity-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px">
+                <div style="display:flex; align-items:center; gap:10px">
+                    <div class="cat-icon">{{ act.emoji }}</div>
+                    <div>
+                        <strong style="font-size:0.9rem; color:#2A2A2A; font-weight:700; display:block">{{ act.title }}</strong>
+                        <span style="color:#7A7469; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase">{{ act.cat_label }}</span>
+                    </div>
+                </div>
+                <span style="font-weight:700; font-size:1rem; color:#FF5200">★ {{ act.rating }}</span>
+            </div>
+            <p style="color:#7A7469; font-size:12.5px; margin:0 0 12px; line-height:1.65">{{ act.description }}</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; font-size:12px; color:#4A4A4A; margin-bottom:12px">
+                <span>👥 {{ act.players }}</span>
+                <span>⏱ {{ act.time }}</span>
+                <span>⚡ {{ act.difficulty }}</span>
+                <span>
+                    {% if act.horror %}
+                        {% if act.horror == '공포 있음' %}
+                            <span class="badge badge-red">{{ act.horror }}</span>
+                        {% else %}
+                            <span class="badge badge-green">{{ act.horror }}</span>
+                        {% endif %}
+                    {% endif %}
+                </span>
+            </div>
+            <div>
+                {% for tag in act.tags %}
+                <span class="badge badge-teal">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:60px 0; color:#888">
+        <div style="font-size:2.5rem; margin-bottom:12px">🔍</div>
+        <p>검색 결과가 없습니다. 다른 조건으로 시도해보세요.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

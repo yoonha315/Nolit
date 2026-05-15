@@ -1,0 +1,181 @@
+{% extends 'layout/base.html' %}
+
+{% block style %}
+{{ block.super }}
+<style>
+    .auth-wrap {
+        min-height: calc(100vh - 64px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 40px 16px;
+    }
+    .auth-card {
+        background: #fff; border: 1px solid var(--border);
+        border-radius: var(--radius-lg); padding: 40px 44px;
+        width: 100%; max-width: 480px;
+        box-shadow: var(--shadow-md);
+    }
+    .auth-title { font-size: 1.5rem; font-weight: 900; color: var(--ink); margin-bottom: 6px; }
+    .auth-sub   { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+    .field-label {
+        display: block; font-size: 11px; font-weight: 700;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--ink-soft); margin-bottom: 8px;
+    }
+    .field-wrap { margin-bottom: 20px; }
+    .auth-input {
+        width: 100%; padding: 12px 14px;
+        border: 1.5px solid var(--border); border-radius: var(--radius);
+        font-size: 14px; font-family: 'Nunito', sans-serif;
+        color: var(--ink); background: #fff;
+        outline: none; transition: border-color 0.15s;
+    }
+    .auth-input:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(43,191,176,0.12);
+    }
+    .field-feedback {
+        font-size: 12px; font-weight: 700; margin-top: 6px;
+        display: block; min-height: 18px;
+    }
+    .feedback-ok  { color: #1A8A80; }
+    .feedback-err { color: #9B2218; }
+    .error-list {
+        background: #FEF0EF; border: 1px solid #F0AAAA;
+        border-radius: var(--radius); padding: 10px 14px;
+        font-size: 13px; color: #9B2218;
+        margin-bottom: 20px;
+    }
+    .error-list li { margin-left: 16px; margin-bottom: 4px; }
+    .submit-btn {
+        width: 100%; padding: 13px;
+        background: var(--orange); color: #fff;
+        border: none; border-radius: var(--radius);
+        font-family: 'Nunito', sans-serif; font-weight: 900;
+        font-size: 15px; cursor: pointer;
+        transition: all 0.18s; margin-top: 4px;
+    }
+    .submit-btn:hover { background: var(--orange-dim); transform: translateY(-1px); }
+    .auth-footer { text-align: center; margin-top: 20px; font-size: 13px; color: var(--muted); }
+    .auth-footer a { color: var(--orange); font-weight: 700; }
+    .auth-footer a:hover { text-decoration: underline; }
+    .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+
+        <div style="text-align:center; margin-bottom:28px">
+            <a href="{% url 'recommender:home' %}" style="font-family:'Raleway',sans-serif; font-size:1.3rem; font-weight:900; color:var(--orange); letter-spacing:0.1em">
+                NOLIT <span style="width:7px;height:7px;border-radius:50%;background:var(--orange);display:inline-block;vertical-align:middle"></span>
+            </a>
+        </div>
+
+        <div class="auth-title">회원가입</div>
+        <div class="auth-sub">NOLIT과 함께 완벽한 모임을 계획하세요.</div>
+
+        {% if errors %}
+        <ul class="error-list">
+            {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:signup' %}" id="signup-form">
+            {% csrf_token %}
+
+            <div class="field-wrap">
+                <label class="field-label" for="username">아이디</label>
+                <input class="auth-input" type="text" id="username" name="username"
+                       placeholder="4자 이상 입력하세요"
+                       value="{{ username_val }}"
+                       autocomplete="username" autofocus>
+                <span class="field-feedback" id="username-feedback"></span>
+                <input type="hidden" id="id-valid" value="0">
+            </div>
+
+            <div class="field-wrap">
+                <label class="field-label" for="password1">비밀번호</label>
+                <input class="auth-input" type="password" id="password1" name="password1"
+                       placeholder="비밀번호를 입력하세요" autocomplete="new-password">
+                <span class="hint">영문, 숫자 조합 8자 이상</span>
+            </div>
+
+            <div class="field-wrap">
+                <label class="field-label" for="password2">비밀번호 확인</label>
+                <input class="auth-input" type="password" id="password2" name="password2"
+                       placeholder="비밀번호를 다시 입력하세요" autocomplete="new-password">
+                <span class="field-feedback" id="pw-feedback"></span>
+            </div>
+
+            <button type="submit" class="submit-btn">회원가입</button>
+        </form>
+
+        <div class="auth-footer">
+            이미 계정이 있으신가요? <a href="{% url 'accounts:login' %}">로그인</a>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block script %}
+<script>
+const CHECK_URL = "{% url 'accounts:check_username' %}";
+const $username  = document.getElementById('username');
+const $feedback  = document.getElementById('username-feedback');
+const $idValid   = document.getElementById('id-valid');
+const $pw2       = document.getElementById('password2');
+const $pwFeedback = document.getElementById('pw-feedback');
+const $form      = document.getElementById('signup-form');
+
+// 아이디 실시간 중복 체크
+let debounceTimer;
+$username.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    $feedback.textContent = '';
+    $feedback.className = 'field-feedback';
+    $idValid.value = '0';
+
+    const val = $username.value.trim();
+    if (val.length < 4) {
+        $feedback.textContent = '4자 이상 입력해주세요.';
+        $feedback.classList.add('feedback-err');
+        return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+        const res  = await fetch(CHECK_URL + '?username=' + encodeURIComponent(val));
+        const data = await res.json();
+        $feedback.textContent = data.message;
+        if (data.available) {
+            $feedback.classList.add('feedback-ok');
+            $idValid.value = '1';
+        } else {
+            $feedback.classList.add('feedback-err');
+        }
+    }, 350);
+});
+
+// 비밀번호 확인 실시간 체크
+$pw2.addEventListener('input', () => {
+    const p1 = document.getElementById('password1').value;
+    if ($pw2.value && $pw2.value !== p1) {
+        $pwFeedback.textContent = '비밀번호가 일치하지 않습니다.';
+        $pwFeedback.className = 'field-feedback feedback-err';
+    } else if ($pw2.value && $pw2.value === p1) {
+        $pwFeedback.textContent = '비밀번호가 일치합니다.';
+        $pwFeedback.className = 'field-feedback feedback-ok';
+    } else {
+        $pwFeedback.textContent = '';
+    }
+});
+
+// 폼 제출 전 유효성 검사
+$form.addEventListener('submit', (e) => {
+    if ($idValid.value !== '1') {
+        e.preventDefault();
+        alert('유효한 아이디를 입력해주세요.');
+    }
+});
+</script>
+{% endblock script %}

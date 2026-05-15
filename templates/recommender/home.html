@@ -1,0 +1,136 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="page-container">
+
+    <!-- 히어로 -->
+    <div style="text-align:center; padding: 80px 0 50px">
+        <div class="hero-tag">⚄ AI 기반 그룹 여가 의사결정 플랫폼</div>
+        <h1 style="font-size:2.8rem; line-height:1.3; margin-top:8px">
+            "이번 토요일 뭐 하지?"<br>
+            이제 <span class="hero-highlight">NOLIT이 답합니다</span>
+        </h1>
+        <p style="color:#7A7469; font-size:1.05rem; margin-top:18px; line-height:1.8">
+            그룹 조건을 이해하고 실패 없는 선택으로 안내하는<br>
+            RAG 기반 여가 활동 추천 서비스
+        </p>
+        <div style="margin-top:32px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap">
+            <a href="{% url 'recommender:ai' %}" class="btn-primary">AI 추천 받기 →</a>
+            <a href="{% url 'recommender:explore' %}" class="btn-secondary">카테고리 탐색</a>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- 문제 정의 -->
+    <h2 style="text-align:center; font-size:1.9rem; margin-bottom:10px">
+        왜 항상 <span class="hero-highlight">"그냥 밥 먹자"</span>로 끝날까요?
+    </h2>
+    <p style="text-align:center; color:#7A7469; margin-bottom:36px">
+        콘텐츠는 충분합니다. 없는 건 <strong style="color:#4A4A4A">우리 그룹에 맞는 선택</strong>입니다.
+    </p>
+
+    <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:16px">
+        <div class="card" style="text-align:center; padding:32px 24px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🎭</div>
+            <h4 style="margin:0 0 8px; font-size:0.95rem">그룹 조건 미반영</h4>
+            <p style="color:#7A7469; font-size:13px; margin:0; line-height:1.7">공포를 싫어하는 사람이 있는지, 처음 만나는 사이인지 고려되지 않습니다.</p>
+        </div>
+        <div class="card" style="text-align:center; padding:32px 24px">
+            <div style="font-size:2.2rem; margin-bottom:14px">💸</div>
+            <h4 style="margin:0 0 8px; font-size:0.95rem">실패 비용이 큼</h4>
+            <p style="color:#7A7469; font-size:13px; margin:0; line-height:1.7">방탈출 한 번 잘못 골라서 그날 분위기 전체가 망가집니다.</p>
+        </div>
+        <div class="card" style="text-align:center; padding:32px 24px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🗺️</div>
+            <h4 style="margin:0 0 8px; font-size:0.95rem">정보 파편화</h4>
+            <p style="color:#7A7469; font-size:13px; margin:0; line-height:1.7">정보는 어딘가에 있지만 우리한테 맞는지 판단할 수 없습니다.</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- 솔루션 -->
+    <h2 style="text-align:center; font-size:1.9rem; margin-bottom:40px">
+        NOLIT 은 이렇게 해결합니다
+    </h2>
+
+    <div class="card" style="display:flex; gap:20px; align-items:flex-start; padding:28px">
+        <div style="flex-shrink:0; width:40px; height:40px; background:#FFF3E0; color:#FF6B00; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem; letter-spacing:0.04em">01</div>
+        <div style="flex:1">
+            <h4 style="margin:0 0 6px; font-size:0.95rem">💬 AI 역질문으로 조건 파악</h4>
+            <p style="color:#7A7469; font-size:13px; margin-bottom:10px; line-height:1.7">막연하게 물어봐도 됩니다. AI가 관계, 공포 수용도, 예산 등 필요한 정보를 하나씩 끌어냅니다.</p>
+            <div class="evidence-box">"우리 4명인데 뭐 하면 좋을까?" → AI가 관계·공포 수용도·예산 등을 질문</div>
+        </div>
+    </div>
+    <div class="card" style="display:flex; gap:20px; align-items:flex-start; padding:28px">
+        <div style="flex-shrink:0; width:40px; height:40px; background:#FFF3E0; color:#FF6B00; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem; letter-spacing:0.04em">02</div>
+        <div style="flex:1">
+            <h4 style="margin:0 0 6px; font-size:0.95rem">📊 RAG 기반 근거 있는 추천</h4>
+            <p style="color:#7A7469; font-size:13px; margin-bottom:10px; line-height:1.7">비슷한 조건의 그룹 경험 데이터를 근거로 제시합니다. 감이 아닌 데이터로 결정합니다.</p>
+            <div class="evidence-box">"4인 그룹에서 어색함이 빨리 풀렸다는 후기 비율 82%"</div>
+        </div>
+    </div>
+    <div class="card" style="display:flex; gap:20px; align-items:flex-start; padding:28px">
+        <div style="flex-shrink:0; width:40px; height:40px; background:#FFF3E0; color:#FF6B00; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem; letter-spacing:0.04em">03</div>
+        <div style="flex:1">
+            <h4 style="margin:0 0 6px; font-size:0.95rem">🛡️ 실패 방지 중심 설계</h4>
+            <p style="color:#7A7469; font-size:13px; margin-bottom:10px; line-height:1.7">좋은 선택보다 '이 선택이 망할 수 있습니다'를 먼저 알려줍니다.</p>
+            <div class="evidence-box">"공포 민감 인원 포함 시 만족도 2.1/5 → 대안 제시"</div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- 카테고리 -->
+    <h2 style="text-align:center; font-size:1.9rem; margin-bottom:10px">다양한 카테고리 지원</h2>
+    <p style="text-align:center; color:#7A7469; margin-bottom:32px; font-size:0.95rem">
+        방탈출부터 머더미스터리까지, 실제 후기 데이터 기반 추천
+    </p>
+
+    <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:16px">
+        <div class="card" style="padding:28px 20px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🔐</div>
+            <h4 style="margin:0 0 6px; font-size:0.95rem">방탈출</h4>
+            <p style="color:#7A7469; font-size:12px; margin-bottom:12px; line-height:1.6">공포도·난이도·지역 기반 필터링</p>
+            <span class="badge badge-teal">어워즈 수상 가중치</span>
+        </div>
+        <div class="card" style="padding:28px 20px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🎲</div>
+            <h4 style="margin:0 0 6px; font-size:0.95rem">보드게임</h4>
+            <p style="color:#7A7469; font-size:12px; margin-bottom:12px; line-height:1.6">메커니즘·인원·복잡도 탐색</p>
+            <span class="badge badge-teal">BGG 데이터 연동</span>
+        </div>
+        <div class="card" style="padding:28px 20px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🕵️</div>
+            <h4 style="margin:0 0 6px; font-size:0.95rem">머더미스터리</h4>
+            <p style="color:#7A7469; font-size:12px; margin-bottom:12px; line-height:1.6">배우 참여형·대본형 유형별 분류</p>
+            <span class="badge badge-teal">라이트 태깅 RAG</span>
+        </div>
+        <div class="card" style="padding:28px 20px">
+            <div style="font-size:2.2rem; margin-bottom:14px">🔍</div>
+            <h4 style="margin:0 0 6px; font-size:0.95rem">크라임씬</h4>
+            <p style="color:#7A7469; font-size:12px; margin-bottom:12px; line-height:1.6">난이도·분위기 기반 추천</p>
+            <span class="badge badge-teal">실제 후기 분석</span>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div style="border:1.5px solid #E8E8E8; border-radius:20px; padding:52px 40px; text-align:center; margin-top:40px; background:#FFFFFF; position:relative; overflow:hidden">
+        <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;background:#FFF3E0;border-radius:50%;z-index:0"></div>
+        <div style="position:absolute;bottom:-40px;left:-20px;width:120px;height:120px;background:#E6FAF8;border-radius:50%;z-index:0"></div>
+        <div style="position:relative;z-index:1">
+            <div style="display:inline-block;background:#E6FAF8;color:#1A8A80;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">지금 바로 시작하세요</div>
+            <div style="font-size:2rem; font-weight:900; color:#2A2A2A; margin-bottom:10px; letter-spacing:-0.02em; line-height:1.25">
+                그룹에 딱 맞는 선택,<br>
+                <span style="color:#FF6B00">AI가 찾아드립니다</span>
+            </div>
+            <p style="color:#888888; margin-bottom:28px; font-size:0.88rem; line-height:1.7">
+                방탈출 · 보드게임 · 머더미스터리 · 크라임씬
+            </p>
+            <a href="{% url 'recommender:ai' %}" class="btn-primary">AI 추천 받기 →</a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
