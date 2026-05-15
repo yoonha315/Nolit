@@ -87,7 +87,53 @@ def _openai_batch(batch: list[str]) -> list[list[float]]:
             return results
 
 
+
 def _embed_openai(texts: list[str], use_ckpt: bool, ckpt_dir: Path) -> np.ndarray:
+#     """OpenAI 전체 임베딩 — 체크포인트 유무에 따라 분기"""
+#     texts = [_truncate(t) for t in texts]
+
+#     # 체크포인트 없는 버전 (소용량)
+#     if not use_ckpt:
+#         all_emb = []
+#         total   = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
+#         start   = time.time()
+#         for i in tqdm(range(total), desc="  OpenAI 임베딩"):
+#             batch = texts[i * BATCH_SIZE: (i + 1) * BATCH_SIZE]
+#             all_emb.extend(_openai_batch(batch))
+#         print(f"  소요: {(time.time()-start)/60:.1f}분")
+#         return np.array(all_emb, dtype="float32")
+
+#     # 체크포인트 있는 버전 (대용량)
+#     ckpt_dir.mkdir(exist_ok=True)
+#     saved       = sorted(ckpt_dir.glob("chunk_*.npy"))
+#     start_idx   = len(saved) * 1000
+#     chunk_emb   = []
+#     chunk_idx   = len(saved)
+#     total_batch = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
+#     start       = time.time()
+
+#     print(f"  체크포인트 {len(saved)}개 확인 → {start_idx:,}번부터 재개")
+
+#     for i in tqdm(range(start_idx // BATCH_SIZE, total_batch), desc="  OpenAI 임베딩"):
+#         batch = texts[i * BATCH_SIZE: (i + 1) * BATCH_SIZE]
+#         chunk_emb.extend(_openai_batch(batch))
+
+#         if len(chunk_emb) >= 1000:
+#             f = ckpt_dir / f"chunk_{chunk_idx:04d}.npy"
+#             np.save(str(f), np.array(chunk_emb[:1000], dtype="float32"))
+#             tqdm.write(f"  청크 저장: {f.name}")
+#             chunk_emb = chunk_emb[1000:]
+#             chunk_idx += 1
+
+#     if chunk_emb:
+#         f = ckpt_dir / f"chunk_{chunk_idx:04d}.npy"
+#         np.save(str(f), np.array(chunk_emb, dtype="float32"))
+
+#     all_chunks = sorted(ckpt_dir.glob("chunk_*.npy"))
+#     embeddings = np.concatenate([np.load(str(c)) for c in all_chunks], axis=0)
+#     print(f"  소요: {(time.time()-start)/60:.1f}분")
+#     return embeddings
+
     """OpenAI 전체 임베딩 — 체크포인트 유무에 따라 분기"""
     texts = [_truncate(t) for t in texts]
 
@@ -128,8 +174,28 @@ def _embed_openai(texts: list[str], use_ckpt: bool, ckpt_dir: Path) -> np.ndarra
         f = ckpt_dir / f"chunk_{chunk_idx:04d}.npy"
         np.save(str(f), np.array(chunk_emb, dtype="float32"))
 
+    # ✅ 여기서부터 수정 — memmap으로 디스크에 쓰면서 합치기
     all_chunks = sorted(ckpt_dir.glob("chunk_*.npy"))
-    embeddings = np.concatenate([np.load(str(c)) for c in all_chunks], axis=0)
+
+    # 1) 전체 행(row) 수를 먼저 파악 (각 청크 파일 헤더만 읽음, RAM 거의 안 씀)
+    total_rows = sum(np.load(str(c), mmap_mode='r').shape[0] for c in all_chunks)
+    n_dim      = np.load(str(all_chunks[0]), mmap_mode='r').shape[1]
+    print(f"  총 임베딩 수: {total_rows:,} / 차원: {n_dim}")
+
+    # 2) memmap 파일 생성 — RAM 대신 디스크에 저장하면서 합침
+    merged_path = ckpt_dir / "merged.npy"
+    embeddings  = np.lib.format.open_memmap(
+        str(merged_path), mode='w+', dtype='float32', shape=(total_rows, n_dim)
+    )
+
+    # 3) 청크를 하나씩 읽어서 합친 파일에 기록 (RAM은 청크 1개 분량만 사용)
+    idx = 0
+    for c in tqdm(all_chunks, desc="  청크 병합"):
+        chunk = np.load(str(c), mmap_mode='r')
+        embeddings[idx: idx + chunk.shape[0]] = chunk
+        idx += chunk.shape[0]
+        del chunk  # 즉시 메모리 해제
+
     print(f"  소요: {(time.time()-start)/60:.1f}분")
     return embeddings
 
