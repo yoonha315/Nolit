@@ -1,32 +1,124 @@
 import json
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.http import JsonResponse
 from django.views import View
 from django.core.paginator import Paginator
+from .models import BoardGame, Escape, CrimeScene
 
-# TODO: 전처리 완료 후 실제 모델로 교체
-# from contents.models.boardgame import BoardGame
-# from contents.models.escape import Escape
-# from contents.models.crimescene import CrimeScene
+CAT_EMOJI  = {"escape": "🔐", "boardgame": "🎲", "crimescene": "🕵️"}
+CAT_LABEL  = {"escape": "방탈출", "boardgame": "보드게임", "crimescene": "크라임씬"}
 
 
-# ── 더미 데이터 (전처리 완료 전 구조 확인용) ──────────────────
-DUMMY_BOARDGAMES = [
-    {"id": 1, "name": "카탄",       "rating": 4.2, "players": "3~4명", "play_time": "90분",  "difficulty": "중급", "tags": ["전략", "협력"]},
-    {"id": 2, "name": "아줄",       "rating": 4.5, "players": "2~4명", "play_time": "45분",  "difficulty": "초급", "tags": ["타일", "추상"]},
-    {"id": 3, "name": "윙스팬",     "rating": 4.6, "players": "1~5명", "play_time": "60분",  "difficulty": "중급", "tags": ["엔진빌딩", "자연"]},
-    {"id": 4, "name": "팬데믹",     "rating": 4.3, "players": "2~4명", "play_time": "60분",  "difficulty": "중급", "tags": ["협력", "전략"]},
-]
+# =====================================================================
+# 카테고리 탐색 메인 페이지
+# =====================================================================
 
-DUMMY_ESCAPES = [
-    {"id": 1, "name": "비밀의 방",  "rating": 4.3, "players": "2~5명", "play_time": "70분",  "difficulty": "중",   "region": "홍대",  "tags": ["추리", "초보 추천"]},
-    {"id": 2, "name": "저주받은 저택", "rating": 4.1, "players": "2~4명", "play_time": "60분", "difficulty": "상",  "region": "강남",  "tags": ["공포", "어드벤처"]},
-]
+class ExploreView(View):
+    """GET /contents/explore/"""
 
-DUMMY_CRIMESCENES = [
-    {"id": 1, "name": "웬디, 어른이 되렴", "rating": 4.5, "players": "4~5명", "play_time": "120분", "difficulty": "중급", "tags": ["추리", "입문용"]},
-    {"id": 2, "name": "구두룡 저택의 살인", "rating": 3.3, "players": "7~9명", "play_time": "120분", "difficulty": "고급", "tags": ["추리", "협력"]},
-]
+    def get(self, request):
+        category   = request.GET.get("category", "all")
+        search     = request.GET.get("search", "").strip().lower()
+        difficulty = request.GET.get("difficulty", "")
+
+        activities = []
+
+        # ── 보드게임 ──────────────────────────────────────
+        if category in ("all", "boardgame"):
+            qs = BoardGame.objects.all()
+            if search:
+                qs = qs.filter(name__icontains=search)
+            if difficulty:
+                qs = qs.filter(difficulty=difficulty)
+            for g in qs[:50]:
+                activities.append({
+                    "id":         g.pk,
+                    "title":      g.name,
+                    "category":   "boardgame",
+                    "emoji":      "🎲",
+                    "cat_label":  "보드게임",
+                    "rating":     g.rating or 0,
+                    "players":    g.players_display,
+                    "time":       g.play_time_display,
+                    "difficulty": g.difficulty,
+                    "horror":     None,
+                    "tags":       g.tags[:4] if isinstance(g.tags, list) else [],
+                    "description": (g.description or "")[:80],
+                })
+
+        # ── 방탈출 ────────────────────────────────────────
+        if category in ("all", "escape"):
+            qs = Escape.objects.all()
+            if search:
+                qs = qs.filter(name__icontains=search)
+            if difficulty:
+                qs = qs.filter(difficulty=difficulty)
+            for g in qs[:50]:
+                # 공포도 텍스트 변환
+                if g.fear_level is None or g.fear_level == 0:
+                    horror = "공포 없음"
+                elif g.fear_level <= 2:
+                    horror = "공포 약함"
+                elif g.fear_level <= 3:
+                    horror = "공포 있음"
+                else:
+                    horror = "공포 강함"
+
+                activities.append({
+                    "id":         g.pk,
+                    "title":      g.name,
+                    "category":   "escape",
+                    "emoji":      "🔐",
+                    "cat_label":  "방탈출",
+                    "rating":     g.rating or 0,
+                    "players":    g.players_display,
+                    "time":       g.play_time_display,
+                    "difficulty": g.difficulty,
+                    "horror":     horror,
+                    "tags":       g.tags[:4] if isinstance(g.tags, list) else [],
+                    "description": (g.description or "")[:80],
+                })
+
+        # ── 머더미스터리 (크라임씬) ───────────────────────
+        if category in ("all", "crimescene"):
+            qs = CrimeScene.objects.all()
+            if search:
+                qs = qs.filter(name__icontains=search)
+            if difficulty:
+                qs = qs.filter(difficulty=difficulty)
+            for g in qs[:50]:
+                activities.append({
+                    "id":          g.pk,
+                    "title":       g.name,
+                    "category":    "crimescene",
+                    "emoji":       "🕵️",
+                    "cat_label":   "크라임씬",
+                    "rating":      g.rating or 0,
+                    "players":     g.players_display,
+                    "time":        g.play_time_display,
+                    "difficulty":  g.difficulty,
+                    "horror":      None,
+                    "tags":        g.tags[:4] if isinstance(g.tags, list) else [],
+                    "description": (g.description or "")[:80],
+                })
+
+        # 태그 검색 (이름 검색 미포함 태그 대상)
+        if search:
+            activities = [
+                a for a in activities
+                if search in a["title"].lower()
+                or any(search in t.lower() for t in a["tags"])
+                or search in (a["description"] or "").lower()
+            ]
+
+        return render(request, "contents/explore.html", {
+            "current_page":   "explore",
+            "activities":     activities,
+            "total":          len(activities),
+            "sel_category":   category,
+            "sel_search":     request.GET.get("search", ""),
+            "sel_difficulty": difficulty,
+        })
 
 
 # =====================================================================
@@ -34,54 +126,36 @@ DUMMY_CRIMESCENES = [
 # =====================================================================
 
 class BoardGameListView(View):
-    """
-    GET /contents/boardgame/
-    params: page, q, difficulty
-    """
-
     def get(self, request):
-        games = DUMMY_BOARDGAMES  # TODO: BoardGame.objects.all()
+        qs = BoardGame.objects.all()
+        if q := request.GET.get("q", ""):
+            qs = qs.filter(name__icontains=q)
+        if d := request.GET.get("difficulty", ""):
+            qs = qs.filter(difficulty=d)
+        if p := request.GET.get("min_players", ""):
+            qs = qs.filter(players_max__gte=int(p))
+        if t := request.GET.get("max_time", ""):
+            qs = qs.filter(play_time__lte=int(t))
 
-        # 검색 필터
-        q = request.GET.get("q", "")
-        if q:
-            games = [g for g in games if q in g["name"]]
-
-        # 난이도 필터
-        difficulty = request.GET.get("difficulty", "")
-        if difficulty:
-            games = [g for g in games if g["difficulty"] == difficulty]
-
-        paginator = Paginator(games, 12)
+        paginator = Paginator(qs, 12)
         page      = paginator.get_page(int(request.GET.get("page", 1)))
+        games     = [_serialize_boardgame(g) for g in page.object_list]
 
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse({
-                "results":     list(page.object_list),
-                "total_pages": paginator.num_pages,
-                "count":       paginator.count,
-            })
-
-        return render(request, "contents/boardgame/list.html", {
-            "games":      page,
-            "q":          q,
-            "difficulty": difficulty,
-        })
+            return JsonResponse({"results": games, "total_pages": paginator.num_pages, "count": paginator.count})
+        return render(request, "contents/boardgame/list.html", {"games": page, "q": q})
 
 
 class BoardGameDetailView(View):
-    """GET /contents/boardgame/<int:pk>/"""
-
     def get(self, request, pk):
-        # TODO: game = get_object_or_404(BoardGame, pk=pk)
-        game = next((g for g in DUMMY_BOARDGAMES if g["id"] == pk), None)
-        if not game:
+        try:
+            game = BoardGame.objects.get(pk=pk)
+        except BoardGame.DoesNotExist:
             return JsonResponse({"error": "게임을 찾을 수 없습니다."}, status=404)
-
+        data = _serialize_boardgame(game, detail=True)
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse(game)
-
-        return render(request, "contents/boardgame/detail.html", {"game": game})
+            return JsonResponse(data)
+        return render(request, "contents/boardgame/detail.html", {"game": data})
 
 
 # =====================================================================
@@ -89,105 +163,136 @@ class BoardGameDetailView(View):
 # =====================================================================
 
 class EscapeListView(View):
-    """
-    GET /contents/escape/
-    params: page, q, region, difficulty
-    """
-
     def get(self, request):
-        games = DUMMY_ESCAPES  # TODO: Escape.objects.all()
+        qs = Escape.objects.all()
+        if q := request.GET.get("q", ""):
+            qs = qs.filter(name__icontains=q)
+        if r := request.GET.get("region", ""):
+            qs = qs.filter(region=r)
+        if d := request.GET.get("difficulty", ""):
+            qs = qs.filter(difficulty=d)
+        if h := request.GET.get("max_horror", ""):
+            qs = qs.filter(fear_level__lte=int(h))
 
-        q = request.GET.get("q", "")
-        if q:
-            games = [g for g in games if q in g["name"]]
-
-        region = request.GET.get("region", "")
-        if region:
-            games = [g for g in games if g["region"] == region]
-
-        difficulty = request.GET.get("difficulty", "")
-        if difficulty:
-            games = [g for g in games if g["difficulty"] == difficulty]
-
-        paginator = Paginator(games, 12)
+        paginator = Paginator(qs, 12)
         page      = paginator.get_page(int(request.GET.get("page", 1)))
+        games     = [_serialize_escape(g) for g in page.object_list]
 
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse({
-                "results":     list(page.object_list),
-                "total_pages": paginator.num_pages,
-                "count":       paginator.count,
-            })
-
-        return render(request, "contents/escape/list.html", {
-            "games":      page,
-            "q":          q,
-            "region":     region,
-            "difficulty": difficulty,
-        })
+            return JsonResponse({"results": games, "total_pages": paginator.num_pages, "count": paginator.count})
+        return render(request, "contents/escape/list.html", {"games": page})
 
 
 class EscapeDetailView(View):
-    """GET /contents/escape/<int:pk>/"""
-
     def get(self, request, pk):
-        game = next((g for g in DUMMY_ESCAPES if g["id"] == pk), None)
-        if not game:
+        try:
+            game = Escape.objects.get(pk=pk)
+        except Escape.DoesNotExist:
             return JsonResponse({"error": "게임을 찾을 수 없습니다."}, status=404)
-
+        data = _serialize_escape(game, detail=True)
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse(game)
-
-        return render(request, "contents/escape/detail.html", {"game": game})
+            return JsonResponse(data)
+        return render(request, "contents/escape/detail.html", {"game": data})
 
 
 # =====================================================================
-# 머더미스터리 (크라임씬)
+# 머더미스터리
 # =====================================================================
 
 class CrimeSceneListView(View):
-    """
-    GET /contents/crimescene/
-    params: page, q, difficulty
-    """
-
     def get(self, request):
-        games = DUMMY_CRIMESCENES  # TODO: CrimeScene.objects.all()
+        qs = CrimeScene.objects.all()
+        if q := request.GET.get("q", ""):
+            qs = qs.filter(name__icontains=q)
+        if d := request.GET.get("difficulty", ""):
+            qs = qs.filter(difficulty=d)
+        if p := request.GET.get("min_players", ""):
+            qs = qs.filter(players_max__gte=int(p))
+        if t := request.GET.get("max_time", ""):
+            qs = qs.filter(play_time__lte=int(t))
 
-        q = request.GET.get("q", "")
-        if q:
-            games = [g for g in games if q in g["name"]]
-
-        difficulty = request.GET.get("difficulty", "")
-        if difficulty:
-            games = [g for g in games if g["difficulty"] == difficulty]
-
-        paginator = Paginator(games, 12)
+        paginator = Paginator(qs, 12)
         page      = paginator.get_page(int(request.GET.get("page", 1)))
+        games     = [_serialize_crimescene(g) for g in page.object_list]
 
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse({
-                "results":     list(page.object_list),
-                "total_pages": paginator.num_pages,
-                "count":       paginator.count,
-            })
-
-        return render(request, "contents/crimescene/list.html", {
-            "games":      page,
-            "q":          q,
-            "difficulty": difficulty,
-        })
+            return JsonResponse({"results": games, "total_pages": paginator.num_pages, "count": paginator.count})
+        return render(request, "contents/crimescene/list.html", {"games": page})
 
 
 class CrimeSceneDetailView(View):
-    """GET /contents/crimescene/<int:pk>/"""
-
     def get(self, request, pk):
-        game = next((g for g in DUMMY_CRIMESCENES if g["id"] == pk), None)
-        if not game:
+        try:
+            game = CrimeScene.objects.get(pk=pk)
+        except CrimeScene.DoesNotExist:
             return JsonResponse({"error": "게임을 찾을 수 없습니다."}, status=404)
-
+        data = _serialize_crimescene(game, detail=True)
         if request.headers.get("Accept") == "application/json":
-            return JsonResponse(game)
+            return JsonResponse(data)
+        return render(request, "contents/crimescene/detail.html", {"game": data})
 
-        return render(request, "contents/crimescene/detail.html", {"game": game})
+
+# =====================================================================
+# 직렬화 헬퍼
+# =====================================================================
+
+def _serialize_boardgame(g, detail=False):
+    data = {
+        "id": g.pk, "category": "boardgame",
+        "name": g.name, "rating": g.rating,
+        "players": g.players_display, "play_time": g.play_time_display,
+        "difficulty": g.difficulty, "image_url": g.image_url,
+        "tags": g.tags if isinstance(g.tags, list) else [],
+        "publisher": g.publisher, "designer": g.designer,
+        "bgg_rank": g.bgg_rank, "mechanism": g.mechanism,
+    }
+    if detail:
+        reviews = g.reviews if isinstance(g.reviews, list) else []
+        data["reviews"]     = reviews[:3]
+        data["description"] = g.description
+    return data
+
+
+def _serialize_escape(g, detail=False):
+    if g.fear_level is None or g.fear_level == 0:
+        horror_text = "공포 없음"
+    elif g.fear_level <= 2:
+        horror_text = "약함"
+    elif g.fear_level <= 3:
+        horror_text = "중간"
+    else:
+        horror_text = "강함"
+
+    data = {
+        "id": g.pk, "category": "escape",
+        "name": g.name, "rating": g.rating,
+        "players": g.players_display, "play_time": g.play_time_display,
+        "difficulty": g.difficulty, "image_url": g.image_url,
+        "tags": g.tags if isinstance(g.tags, list) else [],
+        "region": g.region, "brand": g.brand,
+        "theme": g.theme, "horror_level": horror_text, "fear_level": g.fear_level,
+    }
+    if detail:
+        reviews = g.reviews if isinstance(g.reviews, list) else []
+        data["reviews"]     = reviews[:3]
+        data["description"] = g.description
+    return data
+
+
+def _serialize_crimescene(g, detail=False):
+    data = {
+        "id": g.pk, "category": "crimescene",
+        "name": g.name, "rating": g.rating,
+        "players": g.players_display, "play_time": g.play_time_display,
+        "difficulty": g.difficulty, "image_url": g.image_url,
+        "tags": g.tags if isinstance(g.tags, list) else [],
+        "series": g.series, "maker": g.maker,
+        "publisher": g.publisher, "publisher_kr": g.publisher_kr,
+    }
+    if detail:
+        reviews = g.reviews if isinstance(g.reviews, list) else []
+        if reviews and isinstance(reviews[0], str) and "||" in reviews[0]:
+            reviews = [r.strip() for r in reviews[0].split("||") if r.strip()]
+        data["reviews"]     = reviews[:3]
+        data["description"] = g.description
+    return data
