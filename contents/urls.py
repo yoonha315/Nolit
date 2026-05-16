@@ -1,13 +1,15 @@
 from django.urls import path
 from .views import (
+    ExploreView,
     BoardGameListView, BoardGameDetailView,
     EscapeListView, EscapeDetailView,
     CrimeSceneListView, CrimeSceneDetailView,
 )
-
+ 
 app_name = "contents"
-
+ 
 urlpatterns = [
+    path("explore/",             ExploreView.as_view(),          name="explore"),
     path("boardgame/",           BoardGameListView.as_view(),    name="boardgame_list"),
     path("boardgame/<int:pk>/",  BoardGameDetailView.as_view(),  name="boardgame_detail"),
     path("escape/",              EscapeListView.as_view(),       name="escape_list"),
