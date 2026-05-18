@@ -77,14 +77,9 @@ function showTyping(on) {
 function renderRecommendations(recs) {
     const rankCls = ['', 'rank-gold', 'rank-silver', 'rank-bronze'];
     $recList.innerHTML = recs.map(r => `
-        <div class="card" style="display:flex; gap:16px; align-items:flex-start;">
-            
-            ${r.image_url ? 
-                `<img src="${r.image_url}" alt="${escHtml(r.title)}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:1px solid #EEE; flex-shrink:0;">` 
-                : `<div style="width:80px; height:80px; background:#F5F5F5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#AAA; font-size:12px; flex-shrink:0;">No Image</div>`
-            }
+        <div class="card" style="align-items:flex-start;">
 
-            <div style="flex:1;">
+            <div>
                 <div class="rec-header" style="margin-bottom:8px;">
                     <div class="rec-title-row">
                         <span class="${rankCls[r.rank]}">#${r.rank}</span>
@@ -154,10 +149,11 @@ async function sendMessage(text) {
 
 // 슬롯별 역질문 버튼
 const SLOT_BUTTONS = {
+    domain : ["보드게임", "방탈출", "머더미스터리"],
     person_count : ["2명", "3명", "4명", "5명 이상"],
     relationship : ["처음 만나는 사이", "친한 사이"],
     horror_tolerance : ["모두 괜찮음", "일부 민감함", "전체적으로 피하고 싶음"],
-    budget : ["1인당 1만원", "1인당 2만원", "1인당 3만원 이상"],
+    budget : ["1인당 1만원대", "1인당 2만원대", "1인당 3만원대 이상"],
     activity_level : ["조용한 활동 선호", "보통", "활발한 활동 선호"],
 };
 
@@ -191,6 +187,9 @@ async function sendSmartMessage(text) {
             body: JSON.stringify({ message: text }),
         });
         const data = await res.json();
+        console.log("응답 데이터:", data);          // ← 추가
+        console.log("done:", data.done);           // ← 추가
+        console.log("recommendations:", data.recommendations); // ← 추가
 
         showTyping(false);
         await appendMsg('ai', data.reply);

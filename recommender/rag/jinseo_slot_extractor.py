@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 # ── 슬롯 스키마 ───────────────────────────────────────────────
 SLOT_KEYS = [
+    "domain",
     "person_count",
     "relationship",
     "horror_tolerance",
@@ -22,6 +23,7 @@ SLOT_KEYS = [
 
 # 빠진 슬롯 → 역질문 매핑
 FOLLOWUP_QUESTIONS = {
+    "domain" : "어떤 활동을 원하시나요?\n· 보드게임 · 방탈출 · 머더미스터리",
     "person_count" : "몇 명이서 활동하실 예정인가요?",
     "relationship" : "처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?",
     "horror_tolerance" : "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
@@ -33,7 +35,7 @@ FOLLOWUP_QUESTIONS = {
 _llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 _prompt = ChatPromptTemplate.from_messages([
-    ("system", """사용자 메시지에서 아래 5가지 슬롯을 추출해 JSON으로만 반환하세요.
+    ("system", """사용자 메시지에서 아래 6가지 슬롯을 추출해 JSON으로만 반환하세요.
 값이 언급되지 않으면 null로 표시하세요. 설명은 생략하세요.
 
 [상황 힌트]
@@ -42,6 +44,7 @@ _prompt = ChatPromptTemplate.from_messages([
 (예: 현재 힌트에 'horror_tolerance'가 있고 사용자가 "피하고 싶어"라고 했다면, 공포를 피하고 싶다는 뜻이므로 "없음"으로 처리하세요.)
 
 슬롯 정의:
+- domain : "보드게임" | "방탈출" | "머더미스터리"
 - person_count : 정수 (예: 4)
 - relationship : "친한" 또는 "처음"
 - horror_tolerance : "모두" | "일부" | "없음" (공포를 피하고 싶다는 표현은 "없음"으로 매핑)
@@ -50,6 +53,7 @@ _prompt = ChatPromptTemplate.from_messages([
 
 출력 형식 (이것만 반환):
 {{
+    "domain": null,
     "person_count" : null,
     "relationship" : null,
     "horror_tolerance" : null,
@@ -103,8 +107,17 @@ def merge_slots(existing: dict, new: dict) -> dict:
 
 
 def missing_slots(slots: dict) -> list[str]:
-    """null인 슬롯 키 목록 반환"""
-    return [k for k in SLOT_KEYS if slots.get(k) is None]
+    """null인 슬롯 키 목록 반환 — activity_level은 방탈출 선택 시에만 필수"""
+    missing = []
+    for k in SLOT_KEYS:
+        if k == "activity_level":
+            # 방탈출 선택 시에만 activity_level 필수
+            if slots.get("domain") == "방탈출" and slots.get(k) is None:
+                missing.append(k)
+        else:
+            if slots.get(k) is None:
+                missing.append(k)
+    return missing
 
 
 def build_followup(missing: list[str]) -> str:

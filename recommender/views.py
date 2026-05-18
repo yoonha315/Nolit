@@ -7,7 +7,8 @@ from django.views.decorators.http import require_POST, require_GET
 import traceback
 
 AI_FLOW = [
-    "안녕하세요! 그룹에 맞는 여가 활동을 추천해드리겠습니다.\n먼저, 몇 명이서 활동하실 예정인가요?",
+    "안녕하세요! 그룹에 맞는 여가 활동을 추천해드리겠습니다.\n먼저, 어떤 활동을 원하시나요?· 보드게임 · 방탈출 · 머더미스터리",
+    "몇 명이서 활동하실건가요?"
     "좋습니다! 처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?\n관계에 따라 추천이 달라집니다.",
     "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
     "예산은 1인당 얼마 정도를 생각하시나요?",
@@ -51,48 +52,35 @@ SOURCE_TO_CATEGORY = {
 
 def _rag_to_recommendations(games):
     """RAG 파이프라인 games 리스트를 프론트엔드 recommendations 포맷으로 변환"""
+    print(f">>> _rag_to_recommendations 호출됨, games: {len(games)}개")
     result = []
     for i, game in enumerate(games[:3], 1):
+        print(f"source 값: {game.get('source')}, title: {game.get('title')}")
         rating = game.get("avg_rating") or game.get("rating") or 0
         matched = game.get("matched_tags") or game.get("emotion_tags") or []
         score = game.get("final_score")
         source = game.get("source", "")
         category = SOURCE_TO_CATEGORY.get(source, "보드게임")
 
-        # RAG가 찾아온 원본 타이틀
-        raw_title = game.get("title", "?")
+        if matched:
+            evidence = "감정 태그 매칭: " + ", ".join(matched)
+        elif score:
+            evidence = "최종 점수: " + str(round(float(score), 3))
+        else:
+            evidence = "RAG 검색 결과 기반 추천"
 
-        db_image_url = ""
-        db_id = None
-        display_title = raw_title
-        db_rating = None
-
-        try:
-            db_obj = None
-            if category == "보드게임":
-                # 보드게임: 한글 이름 또는 영어 이름(name_eng)으로 검색
-                db_obj = BoardGame.objects.filter(name=raw_title).first()
-                if not db_obj:
-                    db_obj = BoardGame.objects.filter(name_eng=raw_title).first()
-            
-            elif category == "방탈출":
-                # 방탈출: DB에는 "테마명 (브랜드명)"으로 들어갈 수 있으므로 icontains 사용
-                db_obj = Escape.objects.filter(name__icontains=raw_title).first()
-            
-            elif category in ["머더미스터리", "크라임씬"]:
-                db_obj = CrimeScene.objects.filter(name=raw_title).first()
-
-            # DB에서 객체를 찾았다면 정보 추출
-            if db_obj:
-                db_id = db_obj.id
-                display_title = db_obj.name
-                db_rating = getattr(db_obj, 'rating', None)
-                if hasattr(db_obj, 'image_url') and db_obj.image_url:
-                    db_image_url = db_obj.image_url
-
-        except Exception as e:
-            print(f"DB 매핑 에러 ({raw_title}):", e)
-        # ────────────────────────────────────────────────────────
+    #     result.append({
+    #         "rank": i,
+    #         "title": display_title, # DB에 있는 정확한 이름
+    #         "category": category,
+    #         "rating": round(float(db_rating or rating), 1),
+    #         "reason": game.get("reason", ""),
+    #         "evidence": evidence,
+    #         "risk": None,
+    #         "image_url": db_image_url, # 프론트로 보낼 이미지 URL
+    #         "db_id": db_id,            # 나중에 상세 페이지 링크용
+    #     })
+    # return result
 
         if matched:
             evidence = "감정 태그 매칭: " + ", ".join(matched)
@@ -103,34 +91,14 @@ def _rag_to_recommendations(games):
 
         result.append({
             "rank": i,
-            "title": display_title, # DB에 있는 정확한 이름
+            "title": game.get("title", "?"),
             "category": category,
-            "rating": round(float(db_rating or rating), 1),
+            "rating": round(float(rating), 1) if rating else 0,
             "reason": game.get("reason", ""),
             "evidence": evidence,
             "risk": None,
-            "image_url": db_image_url, # 프론트로 보낼 이미지 URL
-            "db_id": db_id,            # 나중에 상세 페이지 링크용
         })
     return result
-
-    #     if matched:
-    #         evidence = "감정 태그 매칭: " + ", ".join(matched)
-    #     elif score:
-    #         evidence = "최종 점수: " + str(round(float(score), 3))
-    #     else:
-    #         evidence = "RAG 검색 결과 기반 추천"
-
-    #     result.append({
-    #         "rank": i,
-    #         "title": game.get("title", "?"),
-    #         "category": category,
-    #         "rating": round(float(rating), 1) if rating else 0,
-    #         "reason": game.get("reason", ""),
-    #         "evidence": evidence,
-    #         "risk": None,
-    #     })
-    # return result
 
 
 def home(request):
@@ -314,19 +282,26 @@ def smart_chat_api(request):
     # 모든 슬롯 완성 → RAG 실행
     persona_text = slots_to_persona_text(merged)
 
+    # 기본값 초기화 (try 실패 시 대비)
+    recommendations = RECOMMENDATIONS
+    reply = RAG_FALLBACK_MESSAGE
+
     try:
         from recommender.yoonha_graph import run_pipeline
 
-        full_text = message.lower()
-        if any(kw in full_text for kw in ["머더", "미스터리"]):
-            category = "murdermystery"
-        elif any(kw in full_text for kw in ["방탈출", "탈출"]):
-            category = "escape"
-        else:
-            category = "boardgame"
+        domain_map = {
+            "보드게임" : "boardgame",
+            "방탈출" : "escape",
+            "머더미스터리" : "murdermystery",
+        }
+        category = domain_map.get(merged.get("domain"), "boardgame")
 
         group = slots_to_group(merged)
         query = slots_to_query(merged)   # user_text 맥락용
+
+        print(f">>> merged 슬롯: {merged}")    # ← 추가
+        print(f">>> group: {group}")          # ← 추가
+        print(f">>> category: {category}")    # ← 추가
 
         rag_result = run_pipeline(
             user_text=query,   # 자연어 맥락
@@ -338,6 +313,12 @@ def smart_chat_api(request):
         games = rag_result.get("games", [])
         answer = rag_result.get("answer", "그룹 조건을 분석했습니다.")
         next_q = rag_result.get("next_question", "")
+
+        print(f">>> games 수: {len(games)}")
+        print(f">>> games[0]: {games[0] if games else 'empty'}") 
+        print(f">>> answer: {answer[:50]}")         
+        print(f">>> rag_result 키: {list(rag_result.keys())}")
+
         reply = (answer + "\n\n" + next_q) if next_q else answer
         recommendations = _rag_to_recommendations(games) if games else RECOMMENDATIONS
 
@@ -358,7 +339,7 @@ def smart_chat_api(request):
         "reply" : reply,
         "slots" : merged,
         "persona_summary" : persona_text,
-        "recommendations": recommendations,
+        "recommendations": recommendations or RECOMMENDATIONS,
     })
 
 
