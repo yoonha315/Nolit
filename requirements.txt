@@ -10,3 +10,6 @@ sentence-transformers
 rapidfuzz
 rank-bm25
 langgraph
+psycopg2-binary
+supabase
+langchain-openai

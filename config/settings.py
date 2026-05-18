@@ -84,11 +84,30 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': os.environ.get('DB_HOST'),
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': {
+            'sslmode': 'require'
+        }
+    },
+    'game_db': {                              # 두 번째 DB 추가
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': os.environ.get('DB_HOST_NOLIT'),
+        'NAME': os.environ.get('DB_NAME_NOLIT'),
+        'USER': os.environ.get('DB_USER_NOLIT'),
+        'PASSWORD': os.environ.get('DB_PASSWORD_NOLIT'),
+        'PORT': os.environ.get('DB_PORT_NOLIT', '5432'),
+        'OPTIONS': {
+            'sslmode': 'require'
+        }
     }
 }
+
 
 
 # Password validation
