@@ -16,11 +16,11 @@ class Command(BaseCommand):
         total_start = time.time()
         self.stdout.write("=== 게임 데이터 import 시작 ===\n")
 
-        self._import_boardgame_boardlife()
-        self._import_boardgame_bgg()        # boardlife 이후 실행 (중복 제거)
         self._import_escape_bbabang()
         self._import_crimescene_murdermysterylog()
         self._import_crimescene_murmynow()
+        self._import_boardgame_boardlife()
+        self._import_boardgame_bgg()        # boardlife 이후 실행 (중복 제거)
 
         elapsed = time.time() - total_start
         self.stdout.write(self.style.SUCCESS(f"\n=== 완료 ({elapsed:.1f}초) ==="))
@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
     # ── 보드게임: boardlife (한국어 우선) ──────────────────
     def _import_boardgame_boardlife(self):
-        stats_path   = os.path.join(VECTORSTORE, "faiss_boardlife_stats_meta.json")
+        stats_path   = os.path.join(VECTORSTORE, "boardlife_stats_cleaned.csv")
         reviews_path = os.path.join(VECTORSTORE, "faiss_boardlife_reviews_meta.json")
 
         if not os.path.exists(stats_path):
@@ -40,13 +40,13 @@ class Command(BaseCommand):
         self.stdout.write("[boardlife] 보드게임 import 중...")
         start = time.time()
 
-        reviews_map = {}
-        if os.path.exists(reviews_path):
-            for item in self._load(reviews_path):
-                title  = item.get("title", "")
-                rating = item.get("rating")
-                if title and rating is not None:
-                    reviews_map.setdefault(title, []).append(self._to_float(rating))
+        # reviews_map = {}  # reviews 컬럼 없음 (boardlife_stats에 미포함)
+        # if os.path.exists(reviews_path):
+        #     for item in self._load(reviews_path):
+        #         title  = item.get("title", "")
+        #         rating = item.get("rating")
+        #         if title and rating is not None:
+        #             reviews_map.setdefault(title, []).append(self._to_float(rating))
 
         data  = self._load(stats_path)
         total = len(data)
@@ -90,15 +90,14 @@ class Command(BaseCommand):
                     "players_min": self._to_int(item.get("min_players")),
                     "players_max": self._to_int(item.get("max_players")),
                     "play_time":   play_time,
-                    "description": "",
-                    "image_url":   self._to_str(item.get("image")),
+                    "description": self._to_str(item.get("description")),
                     "difficulty":  self._weight_to_difficulty(item.get("weight")),
                     "designer":    self._to_str(designer),
                     "mechanism":   mechanism_raw[:200],
                     "category":    self._to_str(item.get("type")),
                     "bgg_rank":    bgg_rank,
                     "tags":        tags,
-                    "reviews":     [],
+                    "source":      "boardlife",
                 },
             )
             count += 1
@@ -107,7 +106,7 @@ class Command(BaseCommand):
 
     # ── 보드게임: BGG (boardlife와 중복 제거) ──────────────
     def _import_boardgame_bgg(self):
-        stats_path = os.path.join(VECTORSTORE, "faiss_bgg_stats_meta.json")
+        stats_path = os.path.join(VECTORSTORE, "bgg_stats_cleaned.csv")
         if not os.path.exists(stats_path):
             self.stdout.write("[SKIP] bgg stats 없음")
             return
@@ -145,9 +144,9 @@ class Command(BaseCommand):
                     if not game.bgg_rank and item.get("rank"):
                         game.bgg_rank = self._to_int(item.get("rank"))
                         updated = True
-                    if not game.image_url and item.get("image"):
-                        game.image_url = self._to_str(item.get("image"))
-                        updated = True
+                    # if not game.image_url and item.get("image"):  # image 컬럼 없음 (bgg_stats에 미포함)
+                    #     game.image_url = self._to_str(item.get("image"))
+                    #     updated = True
                     if updated:
                         game.save()
                 except BoardGame.DoesNotExist:
@@ -182,15 +181,14 @@ class Command(BaseCommand):
                     "players_min": self._to_int(item.get("min_players")),
                     "players_max": self._to_int(item.get("max_players")),
                     "play_time":   self._to_int(item.get("playing_time")),
-                    "description": "",
-                    "image_url":   self._to_str(item.get("image")),
+                    "description": self._to_str(item.get("description")),
                     "difficulty":  self._weight_to_difficulty(item.get("weight")),
                     "designer":    designer,
                     "bgg_rank":    self._to_int(item.get("rank")),
                     "mechanism":   mechanism[:200],
                     "category":    category,
                     "tags":        tags,
-                    "reviews":     [],
+                    "source":      "bgg",
                 },
             )
             count += 1
@@ -201,31 +199,28 @@ class Command(BaseCommand):
 
     # ── 방탈출: 빠른방탈출 ─────────────────────────────────
     def _import_escape_bbabang(self):
-        stats_path = os.path.join(VECTORSTORE, "faiss_bbabang_stats_metadata.json")
-        if not os.path.exists(stats_path):
-            stats_path = os.path.join(VECTORSTORE, "bbabang_stats_openai_metadata.json")
+        stats_path = os.path.join(VECTORSTORE, "bbabang_cleaned.csv")
         if not os.path.exists(stats_path):
             self.stdout.write("[SKIP] bbabang stats 없음")
             return
 
-        reviews_path = os.path.join(VECTORSTORE, "faiss_bbabang_reviews_metadata.json")
-        if not os.path.exists(reviews_path):
-            reviews_path = os.path.join(VECTORSTORE, "bbabang_reviews_openai_metadata.json")
+        # reviews_path = os.path.join(VECTORSTORE, "faiss_bbabang_reviews_metadata.json")  # reviews 컬럼 없음 (bbabang_cleaned에 미포함)
+        # if not os.path.exists(reviews_path):
+        #     reviews_path = os.path.join(VECTORSTORE, "bbabang_reviews_openai_metadata.json")
 
         self.stdout.write("[bbabang] 방탈출 import 중...")
         start = time.time()
 
-        reviews_map = {}
-        if os.path.exists(reviews_path):
-            for item in self._load(reviews_path):
-                title   = item.get("title", "")
-                if not title:
-                    continue
-                # 리뷰 텍스트: document 또는 review_text 필드
-                text = self._to_str(item.get("document") or item.get("review_text") or item.get("review") or "")
-                rating = self._to_float(item.get("rating"))
-                if text:
-                    reviews_map.setdefault(title, []).append(text)
+        # reviews_map = {}  # reviews 컬럼 없음 (bbabang_cleaned에 미포함)
+        # if os.path.exists(reviews_path):
+        #     for item in self._load(reviews_path):
+        #         title   = item.get("title", "")
+        #         if not title:
+        #             continue
+        #         text = self._to_str(item.get("document") or item.get("review_text") or item.get("review") or "")
+        #         rating = self._to_float(item.get("rating"))
+        #         if text:
+        #             reviews_map.setdefault(title, []).append(text)
 
         data  = self._load(stats_path)
         total = len(data)
@@ -253,8 +248,6 @@ class Command(BaseCommand):
             if fear_level is not None:
                 tags.append("공포 없음" if fear_level <= 1 else "공포 있음" if fear_level >= 3 else "")
 
-            key       = f"{name}|{store_name}"
-            reviews   = reviews_map.get(key, [])[:3]
             full_name = f"{name} ({store_name})" if store_name else name
 
             Escape.objects.update_or_create(
@@ -270,7 +263,7 @@ class Command(BaseCommand):
                     "brand":       store_name,
                     "fear_level":  fear_level,
                     "tags":        [t for t in tags if t],
-                    "reviews":     reviews,
+                    "source":      "bbabang",
                 },
             )
             count += 1
@@ -279,7 +272,7 @@ class Command(BaseCommand):
 
     # ── 크라임씬: murdermysterylog ──────────────────────────
     def _import_crimescene_murdermysterylog(self):
-        path = os.path.join(VECTORSTORE, "faiss_murdermysterylog_meta.json")
+        path = os.path.join(VECTORSTORE, "murdermysterylog_cleaned.csv")
         if not os.path.exists(path):
             self.stdout.write("[SKIP] murdermysterylog 없음")
             return
@@ -298,14 +291,14 @@ class Command(BaseCommand):
             if i % 50 == 0:
                 self.stdout.write(f"  {i}/{total} ({time.time()-start:.1f}초)")
 
-            reviews_raw = item.get("reviews", "") or ""
-            if isinstance(reviews_raw, str) and "||" in reviews_raw:
-                reviews = [r.strip() for r in reviews_raw.split("||") if r.strip()][:3]
-            elif isinstance(reviews_raw, list):
-                reviews = [self._to_str(r) for r in reviews_raw[:3]]
-            else:
-                rev = self._to_str(reviews_raw)
-                reviews = [rev] if rev else []
+            # reviews_raw = item.get("reviews", "") or ""  # reviews 컬럼 없음 (murdermysterylog_cleaned에 미포함)
+            # if isinstance(reviews_raw, str) and "||" in reviews_raw:
+            #     reviews = [r.strip() for r in reviews_raw.split("||") if r.strip()][:3]
+            # elif isinstance(reviews_raw, list):
+            #     reviews = [self._to_str(r) for r in reviews_raw[:3]]
+            # else:
+            #     rev = self._to_str(reviews_raw)
+            #     reviews = [rev] if rev else []
 
             CrimeScene.objects.update_or_create(
                 name=name,
@@ -318,7 +311,7 @@ class Command(BaseCommand):
                     "series":      self._to_str(item.get("시리즈")),
                     "maker":       self._to_str(item.get("제작")),
                     "tags":        [],
-                    "reviews":     reviews,
+                    "source":      "murdermysterylog",
                 },
             )
             count += 1
@@ -327,7 +320,7 @@ class Command(BaseCommand):
 
     # ── 크라임씬: murmynow ──────────────────────────────────
     def _import_crimescene_murmynow(self):
-        path = os.path.join(VECTORSTORE, "faiss_murmynow_meta.json")
+        path = os.path.join(VECTORSTORE, "murmynow_cleaned.csv")
         if not os.path.exists(path):
             self.stdout.write("[SKIP] murmynow 없음")
             return
@@ -341,7 +334,7 @@ class Command(BaseCommand):
 
         for i, item in enumerate(data):
             name = self._to_str(item.get("name"))
-            if not name or CrimeScene.objects.filter(name=name).exists():
+            if not name:
                 continue
             if i % 50 == 0:
                 self.stdout.write(f"  {i}/{total} ({time.time()-start:.1f}초)")
@@ -352,14 +345,13 @@ class Command(BaseCommand):
                     "rating":      self._to_float(item.get("rating")),
                     "players_min": self._to_int(item.get("min_players")),
                     "players_max": self._to_int(item.get("max_players")),
-                    "play_time":   self._to_int(item.get("min_time")),
-                    "description": "",
-                    "image_url":   self._to_str(item.get("image_url")),
+                    "play_time":   self._to_int(item.get("play_time")),
+                    "description": self._to_str(item.get("description")),
                     "difficulty":  self._num_to_difficulty_5(item.get("difficulty")),
                     "maker":       self._to_str(item.get("author")),
                     "publisher":   self._to_str(item.get("publisher")),
                     "tags":        [],
-                    "reviews":     [],
+                    "source":      "murmynow",
                 },
             )
             count += 1
@@ -367,8 +359,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"[murmynow] {count}개 완료 ({time.time()-start:.1f}초)"))
 
     # ── 유틸 ───────────────────────────────────────────────
+    # 변경 — CSV 분기 추가
     def _load(self, path):
         try:
+            if path.endswith(".csv"):
+                import pandas as pd
+                df = pd.read_csv(path)
+                return df.where(df.notna(), None).to_dict(orient="records")
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
