@@ -3,14 +3,51 @@
 {% block style %}
 {{ block.super }}
 <style>
-    .filter-row {
-        display: flex; gap: 12px; align-items: center;
-        flex-wrap: wrap; margin-bottom: 20px;
+    /* ── 카테고리 버튼 탭 ──────────────────────────── */
+    .cat-tab-row {
+        display: flex; gap: 8px; flex-wrap: wrap;
+        margin-bottom: 20px;
     }
-    .filter-row select, .filter-row input[type="text"] {
-        width: auto; min-width: 160px;
+    .cat-tab-btn {
+        display: flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 999px;
+        border: 1.5px solid var(--border);
+        background: #fff; cursor: pointer;
+        font-size: 13px; font-weight: 600;
+        color: #4A4A4A; transition: all 0.15s;
+        font-family: 'Nunito', sans-serif;
+        text-decoration: none;
     }
-    .filter-row input[type="text"] { min-width: 240px; }
+    .cat-tab-btn:hover { border-color: #2A2A2A; color: #2A2A2A; }
+    .cat-tab-btn.active {
+        background: #2A2A2A; color: #fff;
+        border-color: #2A2A2A;
+    }
+    .cat-tab-btn .tab-count { font-size: 11px; opacity: 0.7; }
+
+    /* ── 검색 + 난이도 필터 ────────────────────────── */
+    .search-filter-row {
+        display: flex; gap: 10px; align-items: center;
+        margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap input {
+        width: 100%; padding: 10px 16px 10px 38px;
+        border: 1.5px solid var(--border); border-radius: var(--radius);
+        font-size: 13.5px; font-family: 'Nunito', sans-serif;
+        outline: none; transition: border-color 0.15s;
+    }
+    .search-wrap input:focus { border-color: var(--orange); }
+    .search-icon {
+        position: absolute; left: 12px; top: 50%;
+        transform: translateY(-50%); font-size: 14px; pointer-events: none;
+    }
+    .filter-select {
+        padding: 10px 14px; border: 1.5px solid var(--border);
+        border-radius: var(--radius); font-size: 13px;
+        font-family: 'Nunito', sans-serif;
+        background: #fff; cursor: pointer; outline: none;
+    }
     .filter-btn {
         background: var(--orange); color: #fff;
         border: none; border-radius: var(--radius);
@@ -19,6 +56,13 @@
         transition: background 0.15s;
     }
     .filter-btn:hover { background: var(--orange-dim); }
+
+    .result-count {
+        color: #7A7469; font-size: 12px; margin-bottom: 20px;
+        font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    /* ── 카드 그리드 ────────────────────────────────── */
     .cards-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -28,7 +72,7 @@
         background: #FFFFFF; border: 1px solid var(--border);
         border-radius: var(--radius-lg); padding: 22px;
         box-shadow: var(--shadow-sm); transition: all 0.2s ease;
-        cursor: pointer;  /* ← 클릭 가능 표시 */
+        cursor: pointer;
     }
     .activity-card:hover {
         box-shadow: 0 6px 24px rgba(255,107,0,0.12);
@@ -39,12 +83,13 @@
         border-radius: 10px; display: flex; align-items: center;
         justify-content: center; font-size: 1.3rem; flex-shrink: 0;
     }
-    .result-count {
-        color: #7A7469; font-size: 12px; margin-bottom: 20px;
-        font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    .card-meta {
+        display: flex; flex-wrap: wrap; gap: 4px 16px;
+        font-size: 12px; color: #4A4A4A; margin-bottom: 12px;
     }
+    .card-meta span { display: flex; align-items: center; gap: 4px; }
 
-    /* ── 모달 ──────────────────────────────────────── */
+    /* ── 모달 ───────────────────────────────────────── */
     .modal-overlay {
         position: fixed; inset: 0; z-index: 999;
         background: rgba(0,0,0,0.5);
@@ -52,7 +97,6 @@
         opacity: 0; pointer-events: none; transition: opacity 0.2s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: auto; }
-
     .modal-box {
         background: #fff; border-radius: var(--radius-lg);
         max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto;
@@ -60,7 +104,6 @@
         transform: scale(0.95); transition: transform 0.2s;
     }
     .modal-overlay.open .modal-box { transform: scale(1); }
-
     .modal-header {
         position: sticky; top: 0; background: #fff;
         border-bottom: 1px solid var(--border);
@@ -79,10 +122,7 @@
         border-radius: var(--radius); transition: background 0.15s;
     }
     .modal-close-btn:hover { background: #f3f4f6; color: #2A2A2A; }
-
     .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 20px; }
-
-    /* 별점 */
     .modal-rating { display: flex; align-items: center; gap: 14px; }
     .modal-rating-num {
         font-size: 2.2rem; font-weight: 800; color: #FF5200;
@@ -91,12 +131,8 @@
     .modal-rating-denom { font-size: 1rem; color: #7A7469; font-weight: 400; }
     .modal-divider { width: 1px; height: 28px; background: var(--border); }
     .modal-rating-note { font-size: 12.5px; color: #7A7469; }
-
-    /* 소개 */
     .modal-section-title { font-size: 0.9rem; font-weight: 700; color: #2A2A2A; margin-bottom: 8px; }
     .modal-desc { font-size: 12.5px; color: #7A7469; line-height: 1.7; }
-
-    /* 상세 그리드 */
     .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .modal-detail-item {
         display: flex; align-items: center; gap: 10px;
@@ -105,26 +141,8 @@
     }
     .modal-detail-label { font-size: 11px; color: #7A7469; margin-bottom: 2px; }
     .modal-detail-value { font-size: 13px; font-weight: 700; color: #2A2A2A; }
-    .modal-detail-value.horror-none  { color: #16a34a; }
-    .modal-detail-value.horror-high  { color: #dc2626; }
-
-    /* 리뷰 */
-    .modal-review-item {
-        background: #F9F9F9; border: 1px solid var(--border);
-        border-radius: var(--radius); padding: 14px;
-    }
-    .modal-review-author {
-        display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-    }
-    .modal-avatar {
-        width: 28px; height: 28px; border-radius: 50%;
-        background: #E6FAF8; display: flex; align-items: center;
-        justify-content: center; font-size: 12px; font-weight: 700; color: #2A2A2A;
-    }
-    .modal-author-name { font-size: 13px; font-weight: 700; color: #2A2A2A; }
-    .modal-review-body { font-size: 12.5px; color: #7A7469; line-height: 1.65; }
-
-    /* CTA */
+    .modal-detail-value.horror-none { color: #16a34a; }
+    .modal-detail-value.horror-high { color: #dc2626; }
     .modal-cta {
         background: #FFF5F0; border: 1px solid #FFD8C0;
         border-radius: var(--radius-lg); padding: 18px;
@@ -139,8 +157,6 @@
         text-align: center; text-decoration: none; transition: background 0.15s;
     }
     .modal-cta-btn:hover { background: var(--orange-dim); color: #fff; }
-
-    /* 로딩 */
     .modal-loading { text-align: center; padding: 40px; color: #7A7469; font-size: 13px; }
 </style>
 {% endblock style %}
@@ -150,26 +166,44 @@
     <div style="padding: 32px 0 16px">
         <h2 style="font-size:1.6rem; margin-bottom:6px">카테고리 탐색</h2>
         <p style="color:#7A7469; font-size:13.5px; margin:0">
-            다양한 여가 활동을 둘러보고 그룹에 맞는 선택을 찾아보세요.
+            다양한 여가 활동을 둘러보고 그룹에 맞는 선택을 찾아보세요
         </p>
     </div>
 
-    <!-- 필터 -->
+    <!-- 카테고리 탭 버튼 -->
+    <div class="cat-tab-row">
+        <a href="?category=all&search={{ sel_search }}&difficulty={{ sel_difficulty }}"
+           class="cat-tab-btn {% if sel_category == 'all' %}active{% endif %}">
+            전체 <span class="tab-count">({{ total }})</span>
+        </a>
+        <a href="?category=escape&search={{ sel_search }}&difficulty={{ sel_difficulty }}"
+           class="cat-tab-btn {% if sel_category == 'escape' %}active{% endif %}">
+            🔐 방탈출
+        </a>
+        <a href="?category=boardgame&search={{ sel_search }}&difficulty={{ sel_difficulty }}"
+           class="cat-tab-btn {% if sel_category == 'boardgame' %}active{% endif %}">
+            🎲 보드게임
+        </a>
+        <a href="?category=crimescene&search={{ sel_search }}&difficulty={{ sel_difficulty }}"
+           class="cat-tab-btn {% if sel_category == 'crimescene' %}active{% endif %}">
+            🕵️ 크라임씬
+        </a>
+    </div>
+
+    <!-- 검색바 + 난이도 필터 -->
     <form method="get" action="{% url 'contents:explore' %}">
-        <div class="filter-row">
-            <select name="category">
-                <option value="all"       {% if sel_category == 'all'       %}selected{% endif %}>전체</option>
-                <option value="escape"    {% if sel_category == 'escape'    %}selected{% endif %}>🔐 방탈출</option>
-                <option value="boardgame" {% if sel_category == 'boardgame' %}selected{% endif %}>🎲 보드게임</option>
-                <option value="crimescene" {% if sel_category == 'crimescene' %}selected{% endif %}>🕵️ 크라임씬</option>
-            </select>
-            <input type="text" name="search" placeholder="🔎  제목이나 태그로 검색..." value="{{ sel_search }}">
-            <select name="difficulty">
+        <input type="hidden" name="category" value="{{ sel_category }}">
+        <div class="search-filter-row">
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="search"
+                       placeholder="제목이나 태그로 검색..."
+                       value="{{ sel_search }}">
+            </div>
+            <select name="difficulty" class="filter-select">
                 <option value=""    {% if sel_difficulty == ''    %}selected{% endif %}>모든 난이도</option>
-                <option value="입문" {% if sel_difficulty == '입문' %}selected{% endif %}>입문</option>
-                <option value="중"  {% if sel_difficulty == '중'  %}selected{% endif %}>중</option>
+                <option value="초급" {% if sel_difficulty == '초급' %}selected{% endif %}>초급</option>
                 <option value="중급" {% if sel_difficulty == '중급' %}selected{% endif %}>중급</option>
-                <option value="중상" {% if sel_difficulty == '중상' %}selected{% endif %}>중상</option>
                 <option value="고급" {% if sel_difficulty == '고급' %}selected{% endif %}>고급</option>
             </select>
             <button type="submit" class="filter-btn">검색</button>
@@ -181,10 +215,11 @@
     {% if activities %}
     <div class="cards-grid">
         {% for act in activities %}
-        {# data-id, data-cat 추가 → 모달에서 사용 #}
         <div class="activity-card"
              data-id="{{ act.id }}"
              data-cat="{{ act.category }}">
+
+            <!-- 카드 상단: 아이콘 + 이름 + 별점 -->
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px">
                 <div style="display:flex; align-items:center; gap:10px">
                     <div class="cat-icon">{{ act.emoji }}</div>
@@ -193,28 +228,45 @@
                         <span style="color:#7A7469; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase">{{ act.cat_label }}</span>
                     </div>
                 </div>
-                <span style="font-weight:700; font-size:1rem; color:#FF5200">★ {{ act.rating }}</span>
-            </div>
-            <p style="color:#7A7469; font-size:12.5px; margin:0 0 12px; line-height:1.65">{{ act.description }}</p>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; font-size:12px; color:#4A4A4A; margin-bottom:12px">
-                <span>👥 {{ act.players }}</span>
-                <span>⏱ {{ act.time }}</span>
-                <span>⚡ {{ act.difficulty }}</span>
-                <span>
-                    {% if act.horror %}
-                        {% if act.horror == '공포 있음' %}
-                            <span class="badge badge-red">{{ act.horror }}</span>
-                        {% else %}
-                            <span class="badge badge-green">{{ act.horror }}</span>
-                        {% endif %}
-                    {% endif %}
+                {% if act.rating %}
+                <span style="font-weight:700; font-size:1rem; color:#FF5200; white-space:nowrap">
+                    ★ {{ act.rating }}{% if act.rating_max %}/{{ act.rating_max }}{% endif %}
                 </span>
+                {% endif %}
             </div>
+
+            <!-- 설명 (있을 때만) -->
+            {% if act.description %}
+            <p style="color:#7A7469; font-size:12.5px; margin:0 0 10px; line-height:1.65;
+                       display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">
+                {{ act.description }}
+            </p>
+            {% endif %}
+
+            <!-- 메타 정보 -->
+            <div class="card-meta">
+                {% if act.players %}<span>👥 {{ act.players }}</span>{% endif %}
+                {% if act.time %}  <span>⏱ {{ act.time }}</span>{% endif %}
+                {% if act.difficulty %}<span>⚡ {{ act.difficulty }}</span>{% endif %}
+                {% if act.horror %}
+                    {% if act.horror == '공포 있음' or act.horror == '공포 강함' %}
+                        <span class="badge badge-red">{{ act.horror }}</span>
+                    {% else %}
+                        <span class="badge badge-green">{{ act.horror }}</span>
+                    {% endif %}
+                {% endif %}
+                {% if act.region %}<span>📍 {{ act.region }}</span>{% endif %}
+            </div>
+
+            <!-- 태그 -->
+            {% if act.tags %}
             <div>
                 {% for tag in act.tags %}
                 <span class="badge badge-teal">{{ tag }}</span>
                 {% endfor %}
             </div>
+            {% endif %}
+
         </div>
         {% endfor %}
     </div>
@@ -224,13 +276,28 @@
         <p>검색 결과가 없습니다. 다른 조건으로 시도해보세요.</p>
     </div>
     {% endif %}
+
+    <!-- ── 페이지네이션 ── -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div style="display:flex; justify-content:center; align-items:center; gap:8px; padding:32px 0;">
+        {% if has_prev %}
+        <a href="?category={{ sel_category }}&search={{ sel_search }}&difficulty={{ sel_difficulty }}&page={{ page_obj.previous_page_number }}"
+           class="filter-btn" style="text-decoration:none">← 이전</a>
+        {% endif %}
+        <span style="font-size:13px; color:#7A7469; font-weight:600">
+            {{ page_num }} / {{ page_obj.paginator.num_pages }}페이지 (전체 {{ total }}개)
+        </span>
+        {% if has_next %}
+        <a href="?category={{ sel_category }}&search={{ sel_search }}&difficulty={{ sel_difficulty }}&page={{ page_obj.next_page_number }}"
+           class="filter-btn" style="text-decoration:none">다음 →</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
-<!-- ── 모달 ─────────────────────────────────────────────── -->
+<!-- ── 모달 ──────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-overlay">
     <div class="modal-box">
-
-        <!-- 헤더 -->
         <div class="modal-header">
             <div>
                 <div class="modal-title" id="modal-title"></div>
@@ -238,12 +305,9 @@
             </div>
             <button class="modal-close-btn" id="modal-close">✕</button>
         </div>
-
-        <!-- 본체 -->
         <div class="modal-body" id="modal-body">
             <div class="modal-loading">불러오는 중...</div>
         </div>
-
     </div>
 </div>
 {% endblock %}
@@ -255,29 +319,20 @@ const DETAIL_URL = {
     boardgame:  "/contents/boardgame/",
     escape:     "/contents/escape/",
     crimescene: "/contents/crimescene/",
-    murder:     "/contents/crimescene/",  // murder → crimescene 동일
-    crime:      "/contents/crimescene/",
 };
-const CAT_LABEL = {
-    boardgame: "보드게임", escape: "방탈출",
-    crimescene: "머더미스터리", murder: "머더미스터리", crime: "크라임씬",
-};
-const CAT_EMOJI = {
-    boardgame: "🎲", escape: "🔐", crimescene: "🕵️", murder: "🕵️", crime: "🔍",
-};
+const CAT_LABEL = { boardgame: "보드게임", escape: "방탈출", crimescene: "크라임씬" };
+const CAT_EMOJI = { boardgame: "🎲", escape: "🔐", crimescene: "🕵️" };
 
-// ── 모달 열기 ──────────────────────────────────────────
 async function openModal(id, category) {
     const overlay = document.getElementById("modal-overlay");
-    document.getElementById("modal-title").textContent    = "불러오는 중...";
+    document.getElementById("modal-title").textContent     = "불러오는 중...";
     document.getElementById("modal-cat-label").textContent = CAT_LABEL[category] || category;
     document.getElementById("modal-body").innerHTML = `<div class="modal-loading">불러오는 중...</div>`;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
 
     try {
-        const url = `${DETAIL_URL[category]}${id}/`;
-        const res  = await fetch(url, { headers: { "Accept": "application/json" } });
+        const res  = await fetch(`${DETAIL_URL[category]}${id}/`, { headers: { "Accept": "application/json" } });
         if (!res.ok) throw new Error("not found");
         const game = await res.json();
         renderModal(game);
@@ -292,26 +347,23 @@ function closeModal() {
     document.body.style.overflow = "";
 }
 
-// ── 모달 렌더링 ──────────────────────────────────────────
 function renderModal(game) {
-    const emoji = CAT_EMOJI[game.category] || "🎮";
-    const label = CAT_LABEL[game.category] || game.category;
+    const emoji     = CAT_EMOJI[game.category] || "🎮";
+    const label     = CAT_LABEL[game.category] || game.category;
+    const ratingMax = game.rating_max || 5;
 
     document.getElementById("modal-title").textContent     = `${emoji} ${game.name}`;
     document.getElementById("modal-cat-label").textContent = label;
 
     const ratingNote = {
-        boardgame:  "전문가 평점 기준",
-        escape:     "실제 참여자 후기 기준",
-        crimescene: "플레이어 평균 평점",
-        murder:     "플레이어 평균 평점",
-        crime:      "플레이어 평균 평점",
+        boardgame:  game.source === "bgg" ? "BGG 전문가 평점 (10점 만점)" : "보드게임 평점 (5점 만점)",
+        escape:     "실제 참여자 후기 기준 (5점 만점)",
+        crimescene: "플레이어 평균 평점 (5점 만점)",
     }[game.category] || "";
 
-    const detailHTML  = buildDetailGrid(game);
-    const reviewsHTML = buildReviews(game.reviews || []);
-    const tagsHTML    = (game.tags || [])
-        .map(t => `<span class="badge badge-teal">#${t}</span>`).join(" ");
+    const detailHTML = buildDetailGrid(game);
+    const tagsHTML   = (game.tags || []).map(t => `<span class="badge badge-teal">#${t}</span>`).join(" ");
+    const desc       = game.description ? game.description.replace(/\r?\n/g, "<br>") : "";
 
     document.getElementById("modal-body").innerHTML = `
         <!-- 별점 -->
@@ -319,20 +371,20 @@ function renderModal(game) {
             <div class="modal-rating-num">
                 <span style="color:#fbbf24">★</span>
                 ${game.rating ?? "-"}
-                <span class="modal-rating-denom">/5</span>
+                <span class="modal-rating-denom">/${ratingMax}</span>
             </div>
             <div class="modal-divider"></div>
             <div class="modal-rating-note">${ratingNote}</div>
         </div>
 
-        <!-- 소개 -->
-        ${game.description ? `
+        <!-- 게임 소개 (항상 표시) -->
+        ${desc ? `
         <div>
             <div class="modal-section-title">게임 소개</div>
-            <p class="modal-desc">${game.description.replace(/\r?\n/g, "<br>")}</p>
+            <p class="modal-desc">${desc}</p>
         </div>` : ""}
 
-        <!-- 상세 -->
+        <!-- 상세 정보 -->
         <div>
             <div class="modal-section-title">상세 정보</div>
             <div class="modal-detail-grid">${detailHTML}</div>
@@ -345,13 +397,6 @@ function renderModal(game) {
             <div>${tagsHTML}</div>
         </div>` : ""}
 
-        <!-- 리뷰 -->
-        ${reviewsHTML ? `
-        <div>
-            <div class="modal-section-title">최근 후기 (${(game.reviews||[]).length})</div>
-            <div style="display:flex; flex-direction:column; gap:10px">${reviewsHTML}</div>
-        </div>` : ""}
-
         <!-- CTA -->
         <div class="modal-cta">
             <h4>이 활동이 마음에 드시나요?</h4>
@@ -362,12 +407,13 @@ function renderModal(game) {
 }
 
 function detailItem(icon, label, value, cls = "") {
+    if (!value || value === "-") return "";
     return `
         <div class="modal-detail-item">
             <span>${icon}</span>
             <div>
                 <div class="modal-detail-label">${label}</div>
-                <div class="modal-detail-value ${cls}">${value || "-"}</div>
+                <div class="modal-detail-value ${cls}">${value}</div>
             </div>
         </div>`;
 }
@@ -378,10 +424,10 @@ function buildDetailGrid(game) {
             detailItem("👥", "인원",      game.players),
             detailItem("⏱", "플레이 시간", game.play_time),
             detailItem("⚡", "복잡도",    game.difficulty),
-            detailItem("🏆", "BGG 순위",  game.bgg_rank ? `#${game.bgg_rank}` : "-"),
+            // detailItem("⭐", "BGG 별점",  game.bgg_rating ? `${game.bgg_rating}/10` : ""),
             detailItem("✏️", "디자이너",  game.designer),
-            detailItem("🔧", "메커니즘",  game.mechanism),
         ].join("");
+    }
     }
     if (game.category === "escape") {
         const cls = game.horror_level === "공포 없음" ? "horror-none"
@@ -395,10 +441,9 @@ function buildDetailGrid(game) {
             detailItem("🏢", "브랜드",    game.brand),
         ].join("");
     }
-    // crimescene / murder / crime
     return [
         detailItem("👥", "인원",      game.players),
-        detailItem("⏱", "플레이 시간", game.play_time),
+        detailItem("⏱",  "플레이 시간", game.play_time),
         detailItem("🔍", "추리 난이도", game.difficulty),
         detailItem("🎭", "시리즈",    game.series),
         detailItem("✏️", "제작",      game.maker),
@@ -406,35 +451,15 @@ function buildDetailGrid(game) {
     ].join("");
 }
 
-function buildReviews(reviews) {
-    if (!reviews.length) return "";
-    return reviews.map((r, i) => {
-        const text   = typeof r === "string" ? r : (r.body || r.comment || "");
-        const author = typeof r === "object" && r.author ? r.author : `리뷰어 ${i + 1}`;
-        return `
-            <div class="modal-review-item">
-                <div class="modal-review-author">
-                    <div class="modal-avatar">${author.charAt(0)}</div>
-                    <span class="modal-author-name">${author}</span>
-                </div>
-                <p class="modal-review-body">${text}</p>
-            </div>`;
-    }).join("");
-}
-
-// ── 이벤트 바인딩 ──────────────────────────────────────
+// 카드 클릭
 document.querySelectorAll(".activity-card").forEach(card => {
-    card.addEventListener("click", () => {
-        openModal(card.dataset.id, card.dataset.cat);
-    });
+    card.addEventListener("click", () => openModal(card.dataset.id, card.dataset.cat));
 });
 
 document.getElementById("modal-close").addEventListener("click", closeModal);
 document.getElementById("modal-overlay").addEventListener("click", e => {
     if (e.target === document.getElementById("modal-overlay")) closeModal();
 });
-document.addEventListener("keydown", e => {
-    if (e.key === "Escape") closeModal();
-});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 </script>
 {% endblock script %}

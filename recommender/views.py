@@ -63,7 +63,27 @@ def _rag_to_recommendations(games, pipeline_category=None):
     default_category = PIPELINE_CATEGORY_MAP.get(pipeline_category, "보드게임")
     result = []
     for i, game in enumerate(games[:3], 1):
-        rating = game.get("avg_rating") or game.get("rating") or 0
+        # rating = game.get("avg_rating") or game.get("rating") or 0
+        # 수정 후 — final_score 제외하고 실제 평점만 사용
+        avg_rating = game.get("avg_rating")
+        rating_val = game.get("rating") or game.get("satisfaction")
+        print(f">>> avg_rating={avg_rating}, rating_val={rating_val}, type={type(avg_rating)}")
+        print(f">>> game keys: {list(game.keys())}")
+
+        # 5점 이하인 값만 사용 (final_score 같은 내부 점수 제외)
+        rating = 0
+        for candidate in [avg_rating, rating_val]:
+            if candidate is not None:
+                try:
+                    val = float(candidate)
+                    if 0 < val <= 10:
+                        # 5점 초과면 10점 만점으로 보고 5점 만점으로 변환
+                        rating = round(val / 2, 1) if val > 5 else val
+                        break
+
+                except (ValueError, TypeError):
+                    continue
+
         matched = game.get("matched_tags") or game.get("emotion_tags") or []
         score = game.get("final_score")
         source = game.get("source", "")
@@ -102,26 +122,6 @@ def ai(request):
         "ai_flow_json": json.dumps(AI_FLOW, ensure_ascii=False),
         "recommendations_json": json.dumps(RECOMMENDATIONS, ensure_ascii=False),
     })
-
-def persona(request):
-    if request.method == "POST":
-        request.session["persona"] = {
-            "groupSize": request.POST.get("groupSize", "4"),
-            "relationship": request.POST.get("relationship", "friends"),
-            "horrorTolerance": request.POST.get("horrorTolerance", "low"),
-            "activityLevel": request.POST.get("activityLevel", "moderate"),
-            "budget": request.POST.get("budget", "20000"),
-        }
-        return HttpResponseRedirect(reverse("recommender:persona") + "?saved=1")
-
-    persona_data = request.session.get("persona", DEFAULT_PERSONA)
-    saved = request.GET.get("saved") == "1"
-    return render(request, "recommender/persona.html", {
-        "current_page": "persona",
-        "persona": persona_data,
-        "saved": saved,
-    })
-
 
 @csrf_exempt
 @require_POST
@@ -301,7 +301,15 @@ def smart_chat_api(request):
             use_api=True,
         )
 
+        print(f">>> retrieve_error: {rag_result.get('retrieve_error')}")
+        print(f">>> generate_error: {rag_result.get('generate_error')}")
+
         games = rag_result.get("games", [])
+
+        # ← 여기에 추가
+        for i, g in enumerate(games):
+            print(f">>> game {i}: title={g.get('title')}, source={g.get('source')}")
+
         answer = rag_result.get("answer", "그룹 조건을 분석했습니다.")
         next_q = rag_result.get("next_question", "")
 
@@ -310,7 +318,8 @@ def smart_chat_api(request):
         print(f">>> answer: {answer[:50]}")         
         print(f">>> rag_result 키: {list(rag_result.keys())}")
 
-        reply = (answer + "\n\n" + next_q) if next_q else answer
+        # reply = (answer + "\n\n" + next_q) if next_q else answer
+        reply = answer
         recommendations = _rag_to_recommendations(games, pipeline_category=category) if games else RECOMMENDATIONS
 
     except Exception as e:

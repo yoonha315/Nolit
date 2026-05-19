@@ -15,7 +15,6 @@ urlpatterns = [
     # 페이지
     path('', views.home, name='home'),                # 홈
     path('ai/', views.ai, name='ai'),                 # AI 추천 챗봇
-    path('persona/', views.persona, name='persona'),  # 그룹 설정
 
     # API
     path('api/chat/', views.chat_api, name='chat_api'),                  # 챗봇 대화

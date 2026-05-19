@@ -333,7 +333,7 @@ def generate(
             game["final_score"] = matched_item.get("final_score") or matched_item.get("total_score")
             game["emotion_tags"] = matched_item.get("emotion_tags", [])
             game["source"] = matched_item.get("source")
-            game["avg_rating"] = matched_item.get("avg_rating") or matched_item.get("rating")
+            game["avg_rating"] = matched_item.get("avg_rating") or matched_item.get("rating") or matched_item.get("satisfaction")
             game["min_players"] = matched_item.get("min_players")
             game["max_players"] = matched_item.get("max_players")
             game["image"] = matched_item.get("image")

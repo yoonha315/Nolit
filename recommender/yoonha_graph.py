@@ -904,7 +904,7 @@ def _generate_without_api_local(
                 "final_score": item.get("final_score") or item.get("total_score"),
                 "emotion_tags": item.get("emotion_tags", []) or [],
                 "source": item.get("source"),
-                "avg_rating": item.get("avg_rating") or item.get("rating"),
+                "avg_rating": item.get("avg_rating") or item.get("rating") or item.get("satisfaction"),
                 "min_players": item.get("min_players"),
                 "max_players": item.get("max_players"),
                 "image": item.get("image"),

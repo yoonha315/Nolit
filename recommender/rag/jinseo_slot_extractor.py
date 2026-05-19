@@ -4,7 +4,6 @@
 #   person_count : 인원 수 예) 4
 #   relationship : 관계 예) "친한" | "처음"
 #   horror_tolerance : 공포 허용도 예) "모두" | "일부" | "없음"
-#   budget : 1인당 예산(원) 예) 20000
 #   activity_level : 활동성 예) "조용" | "보통" | "활발"
 
 import json
@@ -17,7 +16,6 @@ SLOT_KEYS = [
     "person_count",
     "relationship",
     "horror_tolerance",
-    "budget",
     "activity_level",
 ]
 
@@ -27,7 +25,6 @@ FOLLOWUP_QUESTIONS = {
     "person_count" : "몇 명이서 활동하실 예정인가요?",
     "relationship" : "처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?",
     "horror_tolerance" : "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
-    "budget" : "예산은 1인당 얼마 정도를 생각하시나요?",
     "activity_level" : "활동성은 어느 정도 원하시나요?\n· 조용한 활동 선호\n· 보통\n· 활발한 활동 선호",
 }
 
@@ -48,7 +45,6 @@ _prompt = ChatPromptTemplate.from_messages([
 - person_count : 정수 (예: 4)
 - relationship : "친한" 또는 "처음"
 - horror_tolerance : "모두" | "일부" | "없음" (공포를 피하고 싶다는 표현은 "없음"으로 매핑)
-- budget : 정수, 1인당 원 단위 (예: 20000)
 - activity_level : "조용" | "보통" | "활발"
 
 출력 형식 (이것만 반환):
@@ -57,7 +53,6 @@ _prompt = ChatPromptTemplate.from_messages([
     "person_count" : null,
     "relationship" : null,
     "horror_tolerance" : null,
-    "budget" : null,
     "activity_level" : null
 }}"""),
     ("human", "{message}"),
@@ -107,10 +102,17 @@ def merge_slots(existing: dict, new: dict) -> dict:
 
 
 def missing_slots(slots: dict) -> list[str]:
-    """null인 슬롯 키 목록 반환 — activity_level은 선택 항목(없으면 '보통' 기본값 사용)"""
-    OPTIONAL = {"activity_level"}
-    return [k for k in SLOT_KEYS if k not in OPTIONAL and slots.get(k) is None]
-
+    """null인 슬롯 키 목록 반환 — activity_level은 방탈출 선택 시에만 필수"""
+    missing = []
+    for k in SLOT_KEYS:
+        if k == "activity_level":
+            # 방탈출 선택 시에만 필수
+            if slots.get("domain") == "방탈출" and slots.get(k) is None:
+                missing.append(k)
+        else:
+            if slots.get(k) is None:
+                missing.append(k)
+    return missing
 
 def build_followup(missing: list[str]) -> str:
     """
@@ -134,8 +136,6 @@ def slots_to_query(slots: dict) -> str:
     if slots.get("horror_tolerance"):
         horror_map = {"모두": "공포 가능", "일부": "공포 일부 가능", "없음": "공포 없음"}
         parts.append(horror_map.get(slots["horror_tolerance"], ""))
-    if slots.get("budget"):
-        parts.append(f"예산 {slots['budget']}원")
     if slots.get("activity_level"):
         parts.append(f"활동성 {slots['activity_level']}")
     return " ".join(p for p in parts if p)
@@ -152,8 +152,6 @@ def slots_to_persona_text(slots: dict) -> str:
         lines.append(f"관계: {slots['relationship']} 사이")
     if slots.get("horror_tolerance"):
         lines.append(f"공포 허용도: {slots['horror_tolerance']}")
-    if slots.get("budget"):
-        lines.append(f"예산: 1인당 {slots['budget']:,}원")
     if slots.get("activity_level"):
         lines.append(f"활동성: {slots['activity_level']}")
     return "\n".join(lines) if lines else "조건 없음"
@@ -165,6 +163,5 @@ def slots_to_group(slots: dict) -> dict:
         "headcount"       : slots.get("person_count"),
         "relation"        : relation_map.get(slots.get("relationship")),
         "horror_tolerance": horror_map.get(slots.get("horror_tolerance")),
-        "budget"          : slots.get("budget"),
         "activity_level"  : slots.get("activity_level") or "보통",  # 미입력 시 기본값
     }

@@ -1,0 +1,642 @@
+{% extends 'layout/base.html' %}
+
+{% block style %}
+{{ block.super }}
+<style>
+    /* ── 페르소나 헤더 ─────────────────────────────── */
+    .persona-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 32px 0 20px;
+        flex-wrap: wrap; gap: 12px;
+    }
+    .persona-header-left h2 {
+        font-size: 1.6rem; font-weight: 800; margin-bottom: 4px;
+        display: flex; align-items: center; gap: 8px; color: #2A2A2A;
+    }
+    .persona-header-left p {
+        color: #7A7469; font-size: 13.5px; margin: 0;
+    }
+
+    /* ── 새 그룹 추가 버튼 ─────────────────────────── */
+    .add-group-btn {
+        background: #2A2A2A; color: #fff;
+        border: none; border-radius: var(--radius);
+        padding: 11px 20px; font-family: 'Nunito', sans-serif;
+        font-weight: 700; font-size: 14px; cursor: pointer;
+        display: flex; align-items: center; gap: 6px;
+        transition: background 0.15s; white-space: nowrap;
+    }
+    .add-group-btn:hover { background: #444; }
+    .add-group-btn .btn-icon { font-size: 16px; }
+
+    /* ── 슬라이드 입력폼 ───────────────────────────── */
+    .group-form-wrap {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+        opacity: 0;
+    }
+    .group-form-wrap.open {
+        max-height: 700px;
+        opacity: 1;
+    }
+    .group-form {
+        background: #fff; border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg); padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-sm);
+    }
+    .group-form-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 22px;
+    }
+    .group-form-header h3 {
+        font-size: 1.05rem; font-weight: 800; color: #2A2A2A;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .form-close-btn {
+        background: none; border: none; font-size: 1rem;
+        color: #7A7469; cursor: pointer; padding: 4px 8px;
+        border-radius: var(--radius); transition: background 0.15s;
+    }
+    .form-close-btn:hover { background: #f3f4f6; color: #2A2A2A; }
+
+    .form-row { margin-bottom: 18px; }
+    .form-label {
+        display: block; font-size: 12.5px; font-weight: 700;
+        color: #2A2A2A; margin-bottom: 7px; letter-spacing: 0.03em;
+    }
+    .form-label .req { color: #EF4444; margin-left: 2px; }
+    .form-label .opt { color: #7A7469; font-weight: 500; font-size: 11px; margin-left: 4px; }
+
+    .form-input {
+        width: 100%; padding: 10px 14px;
+        border: 1.5px solid var(--border); border-radius: var(--radius);
+        font-size: 13.5px; font-family: 'Nunito', sans-serif;
+        outline: none; transition: border-color 0.15s;
+        box-sizing: border-box;
+    }
+    .form-input:focus { border-color: var(--orange); }
+
+    /* 성향·경험 버튼 그룹 */
+    .toggle-group {
+        display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .toggle-btn {
+        flex: 1; min-width: 80px;
+        padding: 9px 12px; border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        background: #fff; cursor: pointer;
+        font-size: 13px; font-weight: 600;
+        color: #4A4A4A; transition: all 0.15s;
+        font-family: 'Nunito', sans-serif;
+        text-align: center;
+    }
+    .toggle-btn:hover { border-color: #2A2A2A; color: #2A2A2A; }
+    .toggle-btn.active {
+        border-color: #2A2A2A; background: #2A2A2A; color: #fff;
+    }
+
+    /* 기피 배지 */
+    .avoid-group {
+        display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .avoid-badge {
+        padding: 7px 14px; border-radius: 999px;
+        border: 1.5px solid var(--border);
+        background: #fff; cursor: pointer;
+        font-size: 12.5px; font-weight: 600;
+        color: #4A4A4A; transition: all 0.15s;
+        font-family: 'Nunito', sans-serif;
+        display: flex; align-items: center; gap: 5px;
+    }
+    .avoid-badge:hover { border-color: #EF4444; color: #EF4444; }
+    .avoid-badge.selected {
+        border-color: #EF4444; background: #FEF2F2; color: #EF4444;
+    }
+    .avoid-badge .x-icon { font-size: 10px; opacity: 0.8; }
+
+    /* 폼 버튼 */
+    .form-actions {
+        display: flex; gap: 10px; margin-top: 24px;
+    }
+    .btn-cancel {
+        flex: 1; padding: 11px;
+        border: 1.5px solid var(--border); border-radius: var(--radius);
+        background: #fff; cursor: pointer;
+        font-family: 'Nunito', sans-serif; font-weight: 700;
+        font-size: 14px; color: #4A4A4A; transition: background 0.15s;
+    }
+    .btn-cancel:hover { background: #f3f4f6; }
+    .btn-save {
+        flex: 2; padding: 11px;
+        background: var(--orange); color: #fff;
+        border: none; border-radius: var(--radius); cursor: pointer;
+        font-family: 'Nunito', sans-serif; font-weight: 700;
+        font-size: 14px; transition: background 0.15s;
+    }
+    .btn-save:hover { background: var(--orange-dim); }
+
+    /* ── 그룹 카드 그리드 ──────────────────────────── */
+    .group-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+    @media (max-width: 768px) {
+        .group-cards-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+        .group-cards-grid { grid-template-columns: 1fr; }
+    }
+
+    .group-card {
+        background: #fff; border: 1.5px solid var(--border);
+        border-radius: var(--radius-lg); padding: 20px;
+        box-shadow: var(--shadow-sm); cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .group-card:hover {
+        border-color: var(--orange);
+        box-shadow: 0 6px 24px rgba(255,107,0,0.10);
+        transform: translateY(-2px);
+    }
+    .group-card-top {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; margin-bottom: 14px;
+    }
+    .group-card-name {
+        font-size: 1rem; font-weight: 800; color: #2A2A2A;
+    }
+    .group-card-size {
+        font-size: 12px; color: #7A7469; font-weight: 600;
+        display: flex; align-items: center; gap: 4px;
+    }
+    .group-card-tags {
+        display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .tag-pill {
+        padding: 4px 10px; border-radius: 999px;
+        background: #F3F4F6; font-size: 11.5px;
+        font-weight: 600; color: #4A4A4A;
+    }
+    .tag-avoid {
+        padding: 4px 10px; border-radius: 6px;
+        background: #FEF2F2; font-size: 11px;
+        font-weight: 600; color: #EF4444;
+    }
+    .avoid-line {
+    margin-top: 8px;
+    }
+
+    /* ── 빈 상태 ───────────────────────────────────── */
+    .empty-state {
+        text-align: center; padding: 72px 0;
+        color: #7A7469;
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 14px; opacity: 0.5; }
+    .empty-state p { font-size: 13.5px; margin: 4px 0; }
+
+    /* ── 그룹 상세 모달 ────────────────────────────── */
+    .modal-overlay {
+        position: fixed; inset: 0; z-index: 999;
+        background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal-box {
+        background: #fff; border-radius: var(--radius-lg);
+        max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+        transform: scale(0.95); transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+    .modal-header {
+        position: sticky; top: 0; background: #fff;
+        border-bottom: 1px solid var(--border);
+        padding: 18px 22px;
+        display: flex; align-items: flex-start; justify-content: space-between;
+        z-index: 1;
+    }
+    .modal-title { font-size: 1.2rem; font-weight: 800; color: #2A2A2A; }
+    .modal-sub { font-size: 11px; color: #7A7469; font-weight: 600;
+        letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px; }
+    .modal-close-btn {
+        background: none; border: none; font-size: 1.1rem;
+        color: #7A7469; cursor: pointer; padding: 4px 8px;
+        border-radius: var(--radius); transition: background 0.15s;
+    }
+    .modal-close-btn:hover { background: #f3f4f6; color: #2A2A2A; }
+    .modal-body { padding: 22px; }
+
+    .modal-detail-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        margin-bottom: 22px;
+    }
+    .modal-detail-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px; background: #F9F9F9;
+        border-radius: var(--radius); border: 1px solid var(--border);
+    }
+    .modal-detail-icon { font-size: 1.1rem; }
+    .modal-detail-label { font-size: 11px; color: #7A7469; margin-bottom: 2px; font-weight: 600; }
+    .modal-detail-value { font-size: 13.5px; font-weight: 700; color: #2A2A2A; }
+
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-modal-edit {
+        flex: 1; padding: 11px;
+        background: #2A2A2A; color: #fff;
+        border: none; border-radius: var(--radius); cursor: pointer;
+        font-family: 'Nunito', sans-serif; font-weight: 700;
+        font-size: 14px; transition: background 0.15s;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-modal-edit:hover { background: #444; }
+    .btn-modal-delete {
+        flex: 1; padding: 11px;
+        background: #EF4444; color: #fff;
+        border: none; border-radius: var(--radius); cursor: pointer;
+        font-family: 'Nunito', sans-serif; font-weight: 700;
+        font-size: 14px; transition: background 0.15s;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-modal-delete:hover { background: #dc2626; }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="page-container">
+
+    <!-- 헤더 -->
+    <div class="persona-header">
+        <div class="persona-header-left">
+            <h2>👤 페르소나 설정</h2>
+            <p>자주 사용하는 그룹 조건을 저장하면 AI 추천 시 자동으로 반영됩니다</p>
+        </div>
+        <button class="add-group-btn" id="toggle-form-btn" data-auth="{{ user.is_authenticated|lower }}"
+        data-login-url="{% url 'accounts:login' %}?next={{ request.path }}">
+            <span class="btn-icon">＋</span> 새 그룹 추가
+        </button>
+    </div>
+
+    <!-- 슬라이드 입력폼 -->
+    <div class="group-form-wrap" id="group-form-wrap">
+        <div class="group-form">
+            <div class="group-form-header">
+                <h3 id="form-title">📋 새 그룹 추가</h3>
+                <button class="form-close-btn" id="form-close-btn">✕</button>
+            </div>
+
+            <!-- 그룹명 -->
+            <div class="form-row">
+                <label class="form-label" for="input-name">그룹명 <span class="req">*</span></label>
+                <input class="form-input" type="text" id="input-name" placeholder="예: 그룹1">
+            </div>
+
+            <!-- 인원수 -->
+            <div class="form-row">
+                <label class="form-label" for="input-size">인원수 <span class="req">*</span></label>
+                <input class="form-input" type="number" id="input-size" min="1" max="20" placeholder="예: 4">
+            </div>
+
+            <!-- 그룹 성향 -->
+            <div class="form-row">
+                <label class="form-label">그룹 성향 <span class="req">*</span></label>
+                <div class="toggle-group" id="tendency-group">
+                    <button class="toggle-btn" data-value="immersive">몰입형</button>
+                    <button class="toggle-btn" data-value="social">친목형</button>
+                    <button class="toggle-btn" data-value="mixed">혼합형</button>
+                </div>
+            </div>
+
+            <!-- 경험 수준 -->
+            <div class="form-row">
+                <label class="form-label">경험 수준 <span class="req">*</span></label>
+                <div class="toggle-group" id="experience-group">
+                    <button class="toggle-btn" data-value="beginner">처음</button>
+                    <button class="toggle-btn" data-value="intermediate">몇 번 해본</button>
+                    <button class="toggle-btn" data-value="experienced">익숙함</button>
+                </div>
+            </div>
+
+            <!-- 기피 항목 -->
+            <div class="form-row">
+                <label class="form-label">기피 항목 <span class="opt">(선택사항)</span></label>
+                <div class="avoid-group" id="avoid-group">
+                    <button class="avoid-badge" data-value="horror">공포</button>
+                    <button class="avoid-badge" data-value="high-difficulty">고난이도</button>
+                    <button class="avoid-badge" data-value="low-rating">낮은 평점</button>
+                </div>
+            </div>
+
+            <!-- 저장/취소 -->
+            <div class="form-actions">
+                <button class="btn-cancel" id="form-cancel-btn">취소</button>
+                <button class="btn-save" id="form-save-btn">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 그룹 카드 그리드 -->
+    <div class="group-cards-grid" id="group-cards-grid"></div>
+
+    <!-- 빈 상태 -->
+    <div class="empty-state" id="empty-state" style="display:none">
+        <div class="empty-icon">👥</div>
+        <p>아직 저장된 그룹이 없습니다.</p>
+        <p>새 그룹 추가 버튼을 눌러 시작하세요.</p>
+    </div>
+
+</div>
+
+<!-- ── 그룹 상세 모달 ── -->
+<div class="modal-overlay" id="group-modal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title" id="modal-group-name"></div>
+                <div class="modal-sub">그룹 상세 정보</div>
+            </div>
+            <button class="modal-close-btn" id="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-detail-grid" id="modal-detail-grid"></div>
+            <div class="modal-actions">
+                <button class="btn-modal-edit" id="modal-edit-btn">✏️ 수정</button>
+                <button class="btn-modal-delete" id="modal-delete-btn">🗑 삭제</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+{{ block.super }}
+<script>
+/* ══════════════════════════════════════════════
+   페르소나 설정 – 상태 & 유틸
+══════════════════════════════════════════════ */
+const STORAGE_KEY = "nolit-groups";
+const AVOID_LABELS = { horror: "공포", "high-difficulty": "고난이도", "low-rating": "낮은 평점" };
+const TENDENCY_LABELS = { immersive: "몰입형", social: "친목형", mixed: "혼합형" };
+const EXPERIENCE_LABELS = { beginner: "처음", intermediate: "몇 번 해본", experienced: "익숙함" };
+
+let groups = [];
+let editingId = null;   // null = 신규, string = 수정 중인 그룹 id
+let selectedGroupId = null;
+
+/* 로컬스토리지 로드 */
+function loadGroups() {
+    try { groups = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { groups = []; }
+}
+/* 로컬스토리지 저장 */
+function saveGroups() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+}
+/* 다음 기본 그룹명 */
+function nextGroupName() {
+    const nums = groups
+        .map(g => { const m = g.name.match(/^그룹(\d+)$/); return m ? +m[1] : 0; })
+        .filter(n => n > 0);
+    return `그룹${nums.length ? Math.max(...nums) + 1 : 1}`;
+}
+
+/* ══════════════════════════════════════════════
+   DOM 참조
+══════════════════════════════════════════════ */
+const toggleFormBtn   = document.getElementById("toggle-form-btn");
+const formWrap        = document.getElementById("group-form-wrap");
+const formTitle       = document.getElementById("form-title");
+const formCloseBtn    = document.getElementById("form-close-btn");
+const formCancelBtn   = document.getElementById("form-cancel-btn");
+const formSaveBtn     = document.getElementById("form-save-btn");
+const inputName       = document.getElementById("input-name");
+const inputSize       = document.getElementById("input-size");
+const tendencyGroup   = document.getElementById("tendency-group");
+const experienceGroup = document.getElementById("experience-group");
+const avoidGroup      = document.getElementById("avoid-group");
+const cardsGrid       = document.getElementById("group-cards-grid");
+const emptyState      = document.getElementById("empty-state");
+const modal           = document.getElementById("group-modal");
+const modalGroupName  = document.getElementById("modal-group-name");
+const modalDetailGrid = document.getElementById("modal-detail-grid");
+const modalClose      = document.getElementById("modal-close");
+const modalEditBtn    = document.getElementById("modal-edit-btn");
+const modalDeleteBtn  = document.getElementById("modal-delete-btn");
+
+/* ══════════════════════════════════════════════
+   폼 열기/닫기
+══════════════════════════════════════════════ */
+function openForm(group = null) {
+    editingId = group ? group.id : null;
+    formTitle.textContent = group ? "✏️ 그룹 수정" : "📋 새 그룹 추가";
+    inputName.value = group ? group.name : nextGroupName();
+    inputSize.value = group ? group.size : "";
+
+    /* 성향 초기화 */
+    tendencyGroup.querySelectorAll(".toggle-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.value === (group?.tendency || ""));
+    });
+    /* 경험 초기화 */
+    experienceGroup.querySelectorAll(".toggle-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.value === (group?.experience || ""));
+    });
+    /* 기피 초기화 */
+    avoidGroup.querySelectorAll(".avoid-badge").forEach(badge => {
+        const sel = (group?.avoidances || []).includes(badge.dataset.value);
+        badge.classList.toggle("selected", sel);
+        badge.innerHTML = sel
+            ? `<span class="x-icon">✕</span>${AVOID_LABELS[badge.dataset.value]}`
+            : AVOID_LABELS[badge.dataset.value];
+    });
+
+    formWrap.classList.add("open");
+    inputName.focus();
+}
+
+function closeForm() {
+    formWrap.classList.remove("open");
+    editingId = null;
+}
+
+/* ── 버튼 이벤트 ── */
+toggleFormBtn.addEventListener("click", () => {
+    if (toggleFormBtn.dataset.auth !== "true") {
+        window.location.href = toggleFormBtn.dataset.loginUrl;
+        return;
+    }
+    if (formWrap.classList.contains("open")) { closeForm(); }
+    else { openForm(); }
+});
+formCloseBtn.addEventListener("click", closeForm);
+formCancelBtn.addEventListener("click", closeForm);
+
+/* ── 토글 버튼 (성향 / 경험) ── */
+function bindToggleGroup(container) {
+    container.querySelectorAll(".toggle-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            container.querySelectorAll(".toggle-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        });
+    });
+}
+bindToggleGroup(tendencyGroup);
+bindToggleGroup(experienceGroup);
+
+/* ── 기피 배지 ── */
+avoidGroup.querySelectorAll(".avoid-badge").forEach(badge => {
+    badge.addEventListener("click", () => {
+        const sel = badge.classList.toggle("selected");
+        badge.innerHTML = sel
+            ? `<span class="x-icon">✕</span>${AVOID_LABELS[badge.dataset.value]}`
+            : AVOID_LABELS[badge.dataset.value];
+    });
+});
+
+/* ── 폼 유효성 & 저장 ── */
+formSaveBtn.addEventListener("click", () => {
+    const name = inputName.value.trim();
+    const size = parseInt(inputSize.value);
+    const tendency   = tendencyGroup.querySelector(".toggle-btn.active")?.dataset.value;
+    const experience = experienceGroup.querySelector(".toggle-btn.active")?.dataset.value;
+    const avoidances = [...avoidGroup.querySelectorAll(".avoid-badge.selected")]
+                            .map(b => b.dataset.value);
+
+    if (!name)      { alert("그룹명을 입력해주세요."); inputName.focus(); return; }
+    if (!size || size < 1) { alert("인원수를 입력해주세요."); inputSize.focus(); return; }
+    if (!tendency)  { alert("그룹 성향을 선택해주세요."); return; }
+    if (!experience){ alert("경험 수준을 선택해주세요."); return; }
+
+    const group = {
+        id: editingId || Date.now().toString(),
+        name, size, tendency, experience, avoidances,
+    };
+
+    if (editingId) {
+        groups = groups.map(g => g.id === editingId ? group : g);
+    } else {
+        groups.push(group);
+    }
+    saveGroups();
+    closeForm();
+    renderCards();
+});
+
+/* ══════════════════════════════════════════════
+   카드 렌더링
+══════════════════════════════════════════════ */
+function renderCards() {
+    cardsGrid.innerHTML = "";
+    if (groups.length === 0) {
+        emptyState.style.display = "block";
+        return;
+    }
+    emptyState.style.display = "none";
+
+    groups.forEach(group => {
+        const avoidHtml = group.avoidances.length
+            ? group.avoidances.map(a =>
+                `<span class="tag-avoid">${AVOID_LABELS[a]} 기피</span>`).join("")
+            : "";
+
+        const card = document.createElement("div");
+        card.className = "group-card";
+        card.innerHTML = `
+            <div class="group-card-top">
+                <div class="group-card-name">${escHtml(group.name)}</div>
+                <div class="group-card-size">👥 ${group.size}명</div>
+            </div>
+            <div class="group-card-tags">
+                <span class="tag-pill">${TENDENCY_LABELS[group.tendency]}</span>
+                <span class="tag-pill">${EXPERIENCE_LABELS[group.experience]}</span>
+            </div>
+            <div class="group-card-tags avoid-line">
+                ${avoidHtml}
+            </div>`;
+        card.addEventListener("click", () => openGroupModal(group.id));
+        cardsGrid.appendChild(card);
+    });
+}
+
+/* ══════════════════════════════════════════════
+   그룹 상세 모달
+══════════════════════════════════════════════ */
+function openGroupModal(id) {
+    selectedGroupId = id;
+    const group = groups.find(g => g.id === id);
+    if (!group) return;
+
+    modalGroupName.textContent = group.name;
+
+    const avoidText = group.avoidances.length
+        ? group.avoidances.map(a => AVOID_LABELS[a]).join(", ")
+        : "없음";
+
+    modalDetailGrid.innerHTML = `
+        ${detailItem("👥", "인원수", `${group.size}명`)}
+        ${detailItem("🎭", "성향", TENDENCY_LABELS[group.tendency])}
+        ${detailItem("⭐", "경험 수준", EXPERIENCE_LABELS[group.experience])}
+        ${detailItem("🚫", "기피 항목", avoidText)}
+    `;
+
+    modal.classList.add("open");
+    document.body.style.overflow = "hidden";
+}
+
+function closeGroupModal() {
+    modal.classList.remove("open");
+    document.body.style.overflow = "";
+    selectedGroupId = null;
+}
+
+function detailItem(icon, label, value) {
+    return `
+        <div class="modal-detail-item">
+            <span class="modal-detail-icon">${icon}</span>
+            <div>
+                <div class="modal-detail-label">${label}</div>
+                <div class="modal-detail-value">${escHtml(value)}</div>
+            </div>
+        </div>`;
+}
+
+modalClose.addEventListener("click", closeGroupModal);
+modal.addEventListener("click", e => { if (e.target === modal) closeGroupModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeGroupModal(); });
+
+modalEditBtn.addEventListener("click", () => {
+    const group = groups.find(g => g.id === selectedGroupId);
+    if (!group) return;
+    closeGroupModal();
+    openForm(group);
+    formWrap.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+modalDeleteBtn.addEventListener("click", () => {
+    const group = groups.find(g => g.id === selectedGroupId);
+    if (!group) return;
+    if (!confirm(`"${group.name}"을(를) 삭제하시겠습니까?`)) return;
+    groups = groups.filter(g => g.id !== selectedGroupId);
+    saveGroups();
+    closeGroupModal();
+    renderCards();
+});
+
+/* ══════════════════════════════════════════════
+   유틸
+══════════════════════════════════════════════ */
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* ══════════════════════════════════════════════
+   초기화
+══════════════════════════════════════════════ */
+loadGroups();
+renderCards();
+</script>
+{% endblock script %}
