@@ -12,7 +12,6 @@ AI_FLOW = [
     "몇 명이서 활동하실건가요?"
     "좋습니다! 처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?\n관계에 따라 추천이 달라집니다.",
     "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
-    "예산은 1인당 얼마 정도를 생각하시나요?",
     "마지막으로, 활동성은 어느 정도 원하시나요?\n· 조용한 활동 선호\n· 보통\n· 활발한 활동 선호",
 ]
 
@@ -64,7 +63,8 @@ def _rag_to_recommendations(games, pipeline_category=None):
     result = []
     for i, game in enumerate(games[:3], 1):
         # rating = game.get("avg_rating") or game.get("rating") or 0
-        # 수정 후 — final_score 제외하고 실제 평점만 사용
+
+        # final_score 제외하고 실제 평점만 사용
         avg_rating = game.get("avg_rating")
         rating_val = game.get("rating") or game.get("satisfaction")
         print(f">>> avg_rating={avg_rating}, rating_val={rating_val}, type={type(avg_rating)}")
@@ -92,9 +92,9 @@ def _rag_to_recommendations(games, pipeline_category=None):
         raw_title = game.get("title", "?")
 
         if matched:
-            evidence = "감정 태그 매칭: " + ", ".join(matched)
+            evidence = "감정 태그 매칭 : " + ", ".join(matched)
         elif score:
-            evidence = "최종 점수: " + str(round(float(score), 3))
+            evidence = "최종 점수 : " + str(round(float(score), 3))
         else:
             evidence = "RAG 검색 결과 기반 추천"
 
@@ -159,10 +159,13 @@ def chat_api(request):
 
         # 사용자 답변에서 카테고리 키워드 탐지
         full_text = query.lower()
-        if any(kw in full_text for kw in ["머더", "미스터리", "방탈출", "탈출"]):
+        
+        if any(kw in full_text for kw in ["머더", "미스터리"]):
             category = "murdermystery"
+        elif any(kw in full_text for kw in ["방탈출", "탈출"]):
+            category = "escape"
         else:
-            category = "boardgame"
+            category = "boardgame" # 그 외에는 전부 보드게임
 
         rag_result = run_pipeline(user_text=query, category=category, use_api=True)
 
@@ -264,10 +267,10 @@ def smart_chat_api(request):
     if missing:
         followup = build_followup(missing)
         return JsonResponse({
-            "done"           : False,
-            "reply"          : followup,
-            "slots"          : merged,
-            "missing_slots"  : missing,
+            "done": False,
+            "reply": followup,
+            "slots": merged,
+            "missing_slots": missing,
         })
 
     # 모든 슬롯 완성 → RAG 실행
@@ -281,9 +284,9 @@ def smart_chat_api(request):
         from recommender.yoonha_graph import run_pipeline
 
         domain_map = {
-            "보드게임" : "boardgame",
-            "방탈출" : "escape",
-            "머더미스터리" : "murdermystery",
+            "보드게임": "boardgame",
+            "방탈출": "escape",
+            "머더미스터리": "murdermystery",
         }
         category = domain_map.get(merged.get("domain"), "boardgame")
 
@@ -335,10 +338,10 @@ def smart_chat_api(request):
     request.session.modified = True
 
     return JsonResponse({
-        "done" : True,
-        "reply" : reply,
-        "slots" : merged,
-        "persona_summary" : persona_text,
+        "done": True,
+        "reply": reply,
+        "slots": merged,
+        "persona_summary": persona_text,
         "recommendations": recommendations or RECOMMENDATIONS,
     })
 
