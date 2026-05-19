@@ -10,7 +10,7 @@ import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-# ── 슬롯 스키마 ───────────────────────────────────────────────
+# 슬롯 스키마 
 SLOT_KEYS = [
     "domain",
     "person_count",
@@ -19,16 +19,16 @@ SLOT_KEYS = [
     "activity_level",
 ]
 
-# 빠진 슬롯 → 역질문 매핑
+# 빠진 슬롯 -> 역질문 매핑
 FOLLOWUP_QUESTIONS = {
-    "domain" : "어떤 활동을 원하시나요?\n· 보드게임 · 방탈출 · 머더미스터리",
-    "person_count" : "몇 명이서 활동하실 예정인가요?",
-    "relationship" : "처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?",
-    "horror_tolerance" : "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
-    "activity_level" : "활동성은 어느 정도 원하시나요?\n· 조용한 활동 선호\n· 보통\n· 활발한 활동 선호",
+    "domain": "어떤 활동을 원하시나요?\n· 보드게임 · 방탈출 · 머더미스터리",
+    "person_count": "몇 명이서 활동하실 예정인가요?",
+    "relationship": "처음 만나는 사이인가요, 아니면 이미 친한 사이인가요?",
+    "horror_tolerance": "공포 요소에 대해 어떻게 생각하시나요?\n· 모두 괜찮음\n· 일부 민감함\n· 전체적으로 피하고 싶음",
+    "activity_level": "활동성은 어느 정도 원하시나요?\n· 조용한 활동 선호\n· 보통\n· 활발한 활동 선호",
 }
 
-# ── LLM 슬롯 추출 프롬프트 ────────────────────────────────────
+# LLM 슬롯 추출 프롬프트 
 _llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 _prompt = ChatPromptTemplate.from_messages([
@@ -40,7 +40,7 @@ _prompt = ChatPromptTemplate.from_messages([
 사용자의 답변에 주어가 생략되어 있더라도, 위 힌트를 바탕으로 문맥을 유추해서 슬롯을 채워주세요.
 (예: 현재 힌트에 'horror_tolerance'가 있고 사용자가 "피하고 싶어"라고 했다면, 공포를 피하고 싶다는 뜻이므로 "없음"으로 처리하세요.)
 
-슬롯 정의:
+슬롯 정의 :
 - domain : "보드게임" | "방탈출" | "머더미스터리"
 - person_count : 정수 (예: 4)
 - relationship : "친한" 또는 "처음"
@@ -50,17 +50,17 @@ _prompt = ChatPromptTemplate.from_messages([
 출력 형식 (이것만 반환):
 {{
     "domain": null,
-    "person_count" : null,
-    "relationship" : null,
-    "horror_tolerance" : null,
-    "activity_level" : null
+    "person_count": null,
+    "relationship": null,
+    "horror_tolerance": null,
+    "activity_level": null
 }}"""),
     ("human", "{message}"),
 ])
 
 _chain = _prompt | _llm
 
-# [수정된 부분] 매개변수에 missing 리스트를 추가로 받아서 프롬프트에 넣어줘!
+# 매개변수에 missing 리스트를 추가로 받아서 프롬프트에 삽입
 def extract_slots(message: str, missing: list[str] = None) -> dict:
     """
     자유 문장 → 슬롯 딕셔너리 추출
@@ -74,7 +74,7 @@ def extract_slots(message: str, missing: list[str] = None) -> dict:
         "missing_context": missing_context
     }).content.strip()
 
-    # 마크다운 코드블록 제거
+    # 마크다운 코드 블록 제거
     raw = raw.replace("```json", "").replace("```", "").strip()
 
     try:
@@ -160,8 +160,8 @@ def slots_to_group(slots: dict) -> dict:
     relation_map = {"친한": "friend", "처음": "first_meeting"}
     horror_map   = {"모두": 2, "일부": 1, "없음": 0}
     return {
-        "headcount"       : slots.get("person_count"),
-        "relation"        : relation_map.get(slots.get("relationship")),
+        "headcount": slots.get("person_count"),
+        "relation": relation_map.get(slots.get("relationship")),
         "horror_tolerance": horror_map.get(slots.get("horror_tolerance")),
-        "activity_level"  : slots.get("activity_level") or "보통",  # 미입력 시 기본값
+        "activity_level": slots.get("activity_level") or "보통",  # 미입력 시 기본값
     }
