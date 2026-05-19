@@ -109,17 +109,80 @@
     .rec-reason-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
     .check-mark { color: #FF5200; font-size: 16px; flex-shrink: 0; margin-top: 1px; }
     .rec-reason { font-size: 13px; line-height: 1.7; color: #4A4A4A; }
+
+    /* 그룹 불러오기 버튼 */
+    .load-group-btn {
+        background: #F3F4F6; color: #2A2A2A;
+        border: 1.5px solid var(--border); border-radius: var(--radius);
+        padding: 7px 14px; font-family: 'Nunito', sans-serif;
+        font-weight: 700; font-size: 12.5px; cursor: pointer;
+        display: none; align-items: center; gap: 5px;
+        transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .load-group-btn.visible { display: flex; }
+    .load-group-btn:hover { background: #E5E7EB; border-color: #2A2A2A; }
+
+    /* 그룹 선택 모달 */
+    .group-modal-overlay {
+        position: fixed; inset: 0; z-index: 999;
+        background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .group-modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .group-modal-box {
+        background: #fff; border-radius: var(--radius-lg);
+        max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+        transform: scale(0.95); transition: transform 0.2s;
+    }
+    .group-modal-overlay.open .group-modal-box { transform: scale(1); }
+    .group-modal-header {
+        position: sticky; top: 0; background: #fff;
+        border-bottom: 1px solid var(--border); padding: 18px 22px;
+        display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .group-modal-title { font-size: 1.15rem; font-weight: 800; color: #2A2A2A; }
+    .group-modal-sub { font-size: 12px; color: #7A7469; margin-top: 3px; }
+    .group-modal-close {
+        background: none; border: none; font-size: 1.1rem;
+        color: #7A7469; cursor: pointer; padding: 4px 8px;
+        border-radius: var(--radius); transition: background 0.15s;
+    }
+    .group-modal-close:hover { background: #f3f4f6; color: #2A2A2A; }
+    .group-modal-body { padding: 16px 22px; display: flex; flex-direction: column; gap: 10px; }
+    .group-select-card {
+        width: 100%; background: #fff;
+        border: 1.5px solid var(--border); border-radius: var(--radius-lg);
+        padding: 14px 16px; cursor: pointer; text-align: left;
+        transition: all 0.15s; display: flex; flex-direction: column; gap: 8px;
+    }
+    .group-select-card:hover { border-color: var(--orange); box-shadow: 0 4px 16px rgba(255,107,0,0.10); }
+    .group-select-top { display: flex; align-items: center; justify-content: space-between; }
+    .group-select-name { font-size: 0.95rem; font-weight: 800; color: #2A2A2A; }
+    .group-select-size { font-size: 12px; color: #7A7469; font-weight: 600; }
+    .group-select-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag-pill-sm { padding: 3px 10px; border-radius: 999px; background: #F3F4F6; font-size: 11px; font-weight: 600; color: #4A4A4A; }
+    .tag-avoid-sm { padding: 3px 10px; border-radius: 999px; background: #FEF2F2; font-size: 11px; font-weight: 600; color: #EF4444; }
+    .group-modal-empty { text-align: center; padding: 32px 0; color: #7A7469; font-size: 13px; }
 </style>
 {% endblock style %}
 
 {% block content %}
 <div class="ai-layout">
 
-    <div class="ai-header">
-        <h2 style="font-size:1.3rem; margin-bottom:3px">AI 추천</h2>
-        <p style="color:#888; font-size:13px; margin:0">
-            AI가 역질문을 통해 그룹 조건을 파악하고, 실패 없는 선택을 추천합니다.
-        </p>
+    <div class="ai-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+            <h2 style="font-size:1.3rem; margin-bottom:3px">AI 추천</h2>
+            <p style="color:#888; font-size:13px; margin:0">
+                AI가 역질문을 통해 그룹 조건을 파악하고, 실패 없는 선택을 추천합니다.
+            </p>
+        </div>
+        <button class="load-group-btn visible" id="load-group-btn"
+                data-auth="{{ user.is_authenticated|lower }}"
+                data-login-url="{% url 'accounts:login' %}?next={{ request.path }}">
+            👥 내 그룹 불러오기
+        </button>
     </div>
 
     <div class="chat-wrap" id="chat-wrap">
@@ -152,6 +215,20 @@
     </div>
 
 </div>
+
+<!-- 그룹 선택 모달 -->
+<div class="group-modal-overlay" id="group-modal-overlay">
+    <div class="group-modal-box">
+        <div class="group-modal-header">
+            <div>
+                <div class="group-modal-title">그룹 불러오기</div>
+                <div class="group-modal-sub">저장된 그룹을 선택하면 자동으로 추천을 시작합니다</div>
+            </div>
+            <button class="group-modal-close" id="group-modal-close">✕</button>
+        </div>
+        <div class="group-modal-body" id="group-modal-body"></div>
+    </div>
+</div>
 {% endblock content %}
 
 {% block script %}
@@ -164,6 +241,111 @@
     const SMART_CHAT_API_URL  = "{% url 'recommender:smart_chat' %}";
     const QUICK_REPLY_API_URL = "{% url 'recommender:quick_reply' %}";
 </script>
+{# 그룹 불러오기 로직 #}
+<script>
+(function () {
+    const AVOID_LABELS     = { horror: "공포", "high-difficulty": "고난이도", "low-rating": "낮은 평점" };
+    const TENDENCY_LABELS  = { immersive: "몰입형", social: "친목형", mixed: "혼합형" };
+    const EXPERIENCE_LABELS = { beginner: "처음", intermediate: "몇 번 해본", experienced: "익숙함" };
+
+    const loadBtn   = document.getElementById("load-group-btn");
+    const overlay   = document.getElementById("group-modal-overlay");
+    const closeBtn  = document.getElementById("group-modal-close");
+    const modalBody = document.getElementById("group-modal-body");
+
+    const IS_AUTH = loadBtn.dataset.auth === "true";   // ✅ 로그인 여부
+    const LOGIN_URL = loadBtn.dataset.loginUrl;
+
+    /* localStorage에서 그룹 읽기 */
+    function getGroups() {
+        try { return JSON.parse(localStorage.getItem("nolit-groups")) || []; }
+        catch { return []; }
+    }
+
+    /* 버튼 클릭 */
+    loadBtn.addEventListener("click", () => {
+        /* ✅ 비로그인 → alert */
+        if (!IS_AUTH) {
+            alert("그룹을 불러오려면 로그인 해주세요.");
+            return;
+        }
+        /* 저장된 그룹 없으면 안내 후 모달 열기 */
+        renderModal();
+        overlay.classList.add("open");
+        document.body.style.overflow = "hidden";
+    });
+
+    /* 모달 닫기 */
+    function closeModal() {
+        overlay.classList.remove("open");
+        document.body.style.overflow = "";
+    }
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+    /* 모달 렌더링 */
+    function renderModal() {
+        const groups = getGroups();
+        modalBody.innerHTML = "";
+
+        if (!groups.length) {
+            modalBody.innerHTML = '<div class="group-modal-empty">저장된 그룹이 없습니다.<br>페르소나 설정에서 먼저 그룹을 추가해주세요.</div>';
+            return;
+        }
+
+        groups.forEach(group => {
+            const avoidHtml = (group.avoidances || [])
+                .map(a => `<span class="tag-avoid-sm">${AVOID_LABELS[a] || a} 기피</span>`)
+                .join("");
+
+            const card = document.createElement("button");
+            card.className = "group-select-card";
+            card.innerHTML = `
+                <div class="group-select-top">
+                    <span class="group-select-name">${esc(group.name)}</span>
+                    <span class="group-select-size">👥 ${group.size}명</span>
+                </div>
+                <div class="group-select-tags">
+                    <span class="tag-pill-sm">${TENDENCY_LABELS[group.tendency] || group.tendency}</span>
+                    <span class="tag-pill-sm">${EXPERIENCE_LABELS[group.experience] || group.experience}</span>
+                    ${avoidHtml}
+                </div>`;
+            card.addEventListener("click", () => selectGroup(group));
+            modalBody.appendChild(card);
+        });
+    }
+
+    /* 그룹 선택 → 채팅 입력으로 전달 */
+    function selectGroup(group) {
+        closeModal();
+
+        const avoidText = (group.avoidances || []).length
+            ? `, 기피 항목: ${group.avoidances.map(a => AVOID_LABELS[a] || a).join(", ")}`
+            : "";
+
+        const msg = `${group.name} 정보를 불러왔습니다. `
+            + `${group.size}명, `
+            + `${TENDENCY_LABELS[group.tendency] || ""} 성향, `
+            + `${EXPERIENCE_LABELS[group.experience] || ""}`
+            + avoidText;
+
+        const input  = document.getElementById("chat-input");
+        const sendBtn = document.getElementById("send-btn");
+        if (input && sendBtn) {
+            input.value = msg;
+            sendBtn.click();
+        }
+    }
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+})();
+</script>
+
 {# 로직은 외부 파일로 분리 #}
 <script src="{% static 'js/ai.js' %}"></script>
 {% endblock script %}
