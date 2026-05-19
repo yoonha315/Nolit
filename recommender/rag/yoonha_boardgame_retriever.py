@@ -47,6 +47,7 @@ from rank_bm25 import BM25Okapi
 # -------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "04_vectorstore"
+# DATA_DIR = PROJECT_ROOT / "data"
 
 bgg_index = faiss.read_index(str(DATA_DIR / "faiss_bgg_stats.index"))
 with open(DATA_DIR / "faiss_bgg_stats_meta.json", "r", encoding="utf-8") as f:
@@ -393,11 +394,31 @@ def _metadata_weight(item: dict, query_filter: dict) -> float:
         else:
             score += normalized * 15.0 * 0.6
 
-    # 2. category/mechanism: 쿼리 의도 매칭
-    if query_filter.get("category") and _contains_tag(item.get("category"), query_filter["category"]):
-        score += 10.0
-    if query_filter.get("mechanism") and _contains_tag(item.get("mechanism"), query_filter["mechanism"]):
-        score += 8.0
+    # 2. category/mechanism: 쿼리 의도 매칭 (보너스 + 미스매치 페널티)
+    #    - 태그가 매칭되면 보너스
+    #    - 데이터가 있는데 매칭 안 되면 강한 감점 (명확한 미스매치)
+    #    - 데이터 자체가 없으면 약한 감점 (불확실)
+    req_category = query_filter.get("category")
+    if req_category:
+        item_category = item.get("category")
+        if _contains_tag(item_category, req_category):
+            score += 10.0
+        elif item_category and _split_tags(item_category):
+            # 카테고리 데이터가 있는데 요청과 다름 → 명확한 미스매치
+            score -= 10.0
+        else:
+            # 카테고리 데이터 자체가 없음 → 약한 감점
+            score -= 3.0
+
+    req_mechanism = query_filter.get("mechanism")
+    if req_mechanism:
+        item_mechanism = item.get("mechanism")
+        if _contains_tag(item_mechanism, req_mechanism):
+            score += 8.0
+        elif item_mechanism and _split_tags(item_mechanism):
+            score -= 8.0
+        else:
+            score -= 2.0
 
     # 3. 추천/베스트 인원 일치
     players = _as_int(query_filter.get("players"), default=None)
@@ -409,16 +430,22 @@ def _metadata_weight(item: dict, query_filter: dict) -> float:
         if players in rec_values:
             score += 6.0
 
-    # 4. weight preference: 0~5, 높을수록 복잡
+    # 4. weight preference: 0~5, 높을수록 복잡 (보너스 + 미스매치 페널티)
     pref = query_filter.get("weight_pref")
     w = _as_number(item.get("weight"), default=None)
     if pref and w is not None:
         if pref == "light":
             score += max(0.0, (3.0 - w) / 3.0) * 6.0
+            # 무거운 게임이 가벼운 쿼리에 올라오면 거리 비례 감점
+            if w >= 3.0:
+                score -= min((w - 2.5) * 4.0, 10.0)
         elif pref == "medium":
             score += max(0.0, 1.0 - abs(w - 3.0) / 2.0) * 6.0
         elif pref == "heavy":
             score += max(0.0, (w - 2.5) / 2.5) * 6.0
+            # 가벼운 게임이 무거운 쿼리에 올라오면 거리 비례 감점
+            if w <= 2.5:
+                score -= min((3.0 - w) * 4.0, 10.0)
 
     # 5. category_rank(Overall): 낮을수록 우수
     cr = item.get("category_rank")
@@ -541,7 +568,52 @@ def _rrf_fuse(
         scored.append(item_copy)
 
     scored.sort(key=lambda x: x["total_score"], reverse=True)
+
+    # ── 에디션 중복 제거 ──
+    # 같은 게임의 다른 에디션(예: 7 Wonders / 7 Wonders Second Edition)이
+    # 동시에 추천되는 것을 방지한다. 점수가 높은 쪽만 유지.
+    scored = _deduplicate_editions(scored)
+
     return scored[:topk]
+
+
+def _normalize_title_for_dedup(title: str) -> str:
+    """
+    에디션 중복 제거용 타이틀 정규화.
+    괄호, 'Second Edition', 'Revised Edition' 등 에디션 표기를 제거하고
+    소문자로 통일하여 동일 게임 여부를 비교한다.
+    """
+    if not title:
+        return ""
+    normalized = title.lower().strip()
+    # 괄호 안 에디션 표기 제거: "7 Wonders (Second Edition)" → "7 Wonders"
+    normalized = re.sub(r"\s*\([^)]*edition[^)]*\)", "", normalized, flags=re.IGNORECASE)
+    # 뒤에 붙는 에디션 표기 제거: "7 Wonders: Second Edition" → "7 Wonders"
+    normalized = re.sub(
+        r"\s*[:：\-–—]\s*(second|third|revised|new|anniversary|deluxe|ultimate)\s*edition.*$",
+        "", normalized, flags=re.IGNORECASE,
+    )
+    # 연도 표기 제거: "Carcassonne 2014" → "Carcassonne"
+    normalized = re.sub(r"\s*\(\d{4}\)\s*$", "", normalized)
+    return normalized.strip()
+
+
+def _deduplicate_editions(scored: list[dict]) -> list[dict]:
+    """
+    정렬된 scored 리스트에서 같은 게임의 에디션 중복을 제거한다.
+    이미 total_score 내림차순이므로 먼저 등장하는 쪽(고점)을 유지한다.
+    """
+    seen_base_titles: dict[str, bool] = {}
+    deduped: list[dict] = []
+    for item in scored:
+        title = item.get("title", "")
+        base = _normalize_title_for_dedup(title)
+        # 같은 소스 내에서만 중복 제거 (BGG와 보드라이프는 별도 유지)
+        dedup_key = f"{item.get('source', '')}::{base}"
+        if dedup_key not in seen_base_titles:
+            seen_base_titles[dedup_key] = True
+            deduped.append(item)
+    return deduped
 
 
 # -------------------------

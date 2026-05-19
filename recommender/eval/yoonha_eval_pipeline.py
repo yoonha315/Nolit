@@ -113,6 +113,62 @@ BOARDGAME_QUERIES = [
             "정령섬",
         ],
     },
+    {
+        "name": "6인 파티게임",
+        "user_text": "6명이서 다같이 웃고 떠들 수 있는 파티게임",
+        "group": {
+            "headcount": 6,
+            "play_time": 60,
+            "weight_pref": "light",
+            "category": "Party",
+            "horror_tolerance": 2,
+            "relation": "friend",
+        },
+        "ground_truth": [
+            "Codenames",
+            "코드네임",
+            "Telestrations",
+            "Just One",
+            "Decrypto",
+            "Wavelength",
+        ],
+    },
+    {
+        "name": "보드게임 일반 추천",
+        "user_text": "보드게임 하나 추천해줘",
+        "group": {
+            "headcount": None,
+            "play_time": None,
+            "weight_pref": None,
+            "category": None,
+            "horror_tolerance": 2,
+            "relation": None,
+        },
+        "ground_truth": [
+            "Catan", "카탄",
+            "Ticket to Ride", "티켓 투 라이드",
+            "Pandemic", "팬데믹",
+            "Codenames", "코드네임",
+        ],
+    },
+    {
+        "name": "5인 중간 무게 전략",
+        "user_text": "5명이서 할 수 있는 적당히 머리 쓰는 전략 게임",
+        "group": {
+            "headcount": 5,
+            "play_time": 90,
+            "weight_pref": "medium",
+            "category": "Strategy",
+            "horror_tolerance": 2,
+            "relation": "friend",
+        },
+        "ground_truth": [
+            "Terraforming Mars",
+            "테라포밍 마스",
+            "Wingspan",
+            "Scythe",
+        ],
+    },
 ]
 
 
@@ -141,9 +197,11 @@ MURDER_QUERIES = [
             "horror_tolerance": 2,
             "relation": "friend",
         },
-        # 정답셋이 없는 smoke test 케이스.
-        # Precision@10은 N/A가 되지만 Condition@10은 계산된다.
-        "ground_truth": [],
+        "ground_truth": [
+            "일백마을 살인사건",
+            "프로젝트 노아",
+            "0719: 낙하를 향하는 두 개의 수",
+        ],
     },
     {
         "name": "8인 대규모 파티",
@@ -156,7 +214,37 @@ MURDER_QUERIES = [
         },
         "ground_truth": [
             "구두룡 저택의 살인",
+            "끝나지 않는 한여름",
+            "새장 속 제비는 꿈을 꾼다",
+            "늑대인간 마을의 축제",
         ],
+    },
+    {
+        "name": "머더미스터리 일반 추천",
+        "user_text": "머더미스터리 하나 추천해줘",
+        "group": {
+            "headcount": None,
+            "play_time": None,
+            "horror_tolerance": 2,
+            "relation": None,
+        },
+        "ground_truth": [
+            "몇 번이고 푸른 달에 불을 붙였다",
+            "구두룡 저택의 살인",
+            "비더리타",
+        ],
+    },
+    {
+        "name": "2인 감성 머더미스터리",
+        "user_text": "2명이서 할 수 있는 감성적인 머더미스터리",
+        "group": {
+            "headcount": 2,
+            "play_time": 180,
+            "difficulty_pref": "medium",
+            "horror_tolerance": 0,
+            "relation": "couple",
+        },
+        "ground_truth": [],
     },
 ]
 

@@ -113,6 +113,9 @@ except ImportError as e:
         m = re.search(r"(\d+)\s*(명|인)", query)
         if m:
             filters["max_players"] = int(m.group(1))
+        elif any(w in query for w in ["커플", "연인", "둘이서", "2인", "두명"]):
+            # "커플" 등 2인을 암묵적으로 의미하는 표현 처리
+            filters["max_players"] = 2
 
         m = re.search(r"(\d+)\s*만\s*원\s*이하", query)
         if m:
@@ -267,6 +270,13 @@ except Exception as e:
                     score += max(0, 5 - weight) * 4
                 if any(k in query for k in ["전략", "어려운", "헤비", "깊은"]):
                     score += weight * 4
+                # 일반 추천(특별한 조건 없음) 시 고난도 게임 편향 억제
+                # weight 4 이상의 헤비게임에 패널티를 줘서 접근성 균형을 맞춤
+                is_general_query = not any(k in query for k in [
+                    "전략", "어려운", "헤비", "깊은", "쉬운", "입문", "초보", "간단", "파티"
+                ])
+                if is_general_query and weight >= 4.0:
+                    score -= (weight - 3.5) * 3
         elif category == "escape":
             if horror is not None:
                 if any(k in query for k in ["안 무서운", "공포 없음", "무섭지 않은"]):
@@ -331,8 +341,16 @@ except Exception as e:
             keywords = CONDITION_KEYWORDS.get(condition, [])
             matched = [kw for kw in keywords if kw.lower() in text]
 
+            # boardgame 조건: 키워드 매칭이 실제로 있을 때만 인정
+            # (이전에는 무조건 matched에 추가해 항상 점수를 받는 버그가 있었음)
+            # 주의: "게임"이 아이템 텍스트에 일반 단어로 등장하면 여전히 매칭될 수 있음.
+            # 이는 데이터 레벨 문제로, source 필드로 카테고리를 구분하는 것이 더 정확함.
             if condition == "boardgame":
-                matched.append("category=boardgame")
+                source = str(item.get("source", "")).lower()
+                if source in ("bgg", "boardlife", "boardgame") or any(
+                    kw in text for kw in CONDITION_KEYWORDS["boardgame"]
+                ):
+                    matched.append("category=boardgame")
             if condition == "popular" and rating and rating >= 7:
                 matched.append(f"rating {rating}")
             if condition == "player_7":
@@ -443,7 +461,8 @@ BBABANG_QUERIES = [
     {
         "name": "강릉 커플 인테리어",
         "user_text": "강릉에서 커플이 하기 좋은 인테리어 예쁜 방탈출 추천",
-        "expected_filters": {"location": "강릉시"},
+        # 커플 → max_players: 2 추출 여부를 검증
+        "expected_filters": {"location": "강릉시", "max_players": 2},
         "expected_prefs": {"interior": True, "satisfaction": True},
         "ground_truth": [],
     },
@@ -452,6 +471,40 @@ BBABANG_QUERIES = [
         "user_text": "원주에서 퍼즐 잘 만들고 어려운 고난도 방탈출 추천",
         "expected_filters": {"location": "원주시"},
         "expected_prefs": {"puzzle": True, "difficulty": "high", "satisfaction": True},
+        "ground_truth": [],
+    },
+    # ------------------------------------------------------------------
+    # 수도권 쿼리: 레포트에서 강원 지역에만 집중된 점 지적 → 커버리지 확장
+    # ------------------------------------------------------------------
+    {
+        "name": "강남 공포 방탈출",
+        "user_text": "강남구에서 무서운 공포 방탈출 추천",
+        "expected_filters": {"location": "강남구"},
+        "expected_prefs": {"horror": "high", "satisfaction": True},
+        "ground_truth": [],
+    },
+    {
+        "name": "마포구 4인 스토리",
+        "user_text": "마포구에서 4명이 할 수 있는 스토리 좋은 방탈출 추천",
+        "expected_filters": {"location": "마포구", "max_players": 4},
+        "expected_prefs": {"story": True, "satisfaction": True},
+        "ground_truth": [],
+    },
+    # ------------------------------------------------------------------
+    # 엣지 케이스: 복합 조건 / 구 단위 / 가격 필터
+    # ------------------------------------------------------------------
+    {
+        "name": "부천 4인 무서운 방탈출",
+        "user_text": "부천에서 4인 무서운 방탈출 추천해줘",
+        "expected_filters": {"location": "부천시", "max_players": 4},
+        "expected_prefs": {"horror": "high", "satisfaction": True},
+        "ground_truth": [],
+    },
+    {
+        "name": "수원 입문용 2만원 이하",
+        "user_text": "수원에서 2만원 이하 쉬운 입문용 방탈출 추천",
+        "expected_filters": {"location": "수원시", "price": 20000},
+        "expected_prefs": {"difficulty": "low", "satisfaction": True},
         "ground_truth": [],
     },
 ]
@@ -471,7 +524,11 @@ TOTAL_QUERIES = [
             "popular": 2,
             "fun": 1,
         },
-        "ground_truth": [],
+        "ground_truth": [
+            "Catan", "카탄",
+            "Ticket to Ride", "티켓 투 라이드",
+            "Pandemic", "팬데믹",
+        ],
     },
     {
         "name": "재밌는 방탈출 추천",
@@ -495,7 +552,10 @@ TOTAL_QUERIES = [
             "story": 1,
             "immersion": 1,
         },
-        "ground_truth": [],
+        "ground_truth": [
+            "몇 번이고 푸른 달에 불을 붙였다",
+            "구두룡 저택의 살인",
+        ],
     },
     {
         "name": "파티게임 추천",
@@ -508,10 +568,10 @@ TOTAL_QUERIES = [
             "fun": 1,
         },
         "ground_truth": [
-            "Codenames",
-            "코드네임",
-            "Dixit",
-            "딕싯",
+            "Codenames", "코드네임",
+            "Dixit", "딕싯",
+            "Just One",
+            "Telestrations",
         ],
     },
     {
@@ -524,7 +584,60 @@ TOTAL_QUERIES = [
             "party": 2,
             "easy": 1,
         },
-        "ground_truth": [],
+        "ground_truth": [
+            "Decrypto",
+            "7 Wonders",
+            "The Resistance",
+            "Just One",
+        ],
+    },
+    # ------------------------------------------------------------------
+    # 추가 쿼리: Precision 평가 신뢰도 확보 (기존 GT 있는 쿼리가 파티게임 1개뿐)
+    # ------------------------------------------------------------------
+    {
+        "name": "2인 협력 보드게임",
+        "user_text": "2명이서 같이 협력해서 할 수 있는 보드게임 추천해줘",
+        "category": "boardgame",
+        "conditions": {
+            "boardgame": 2,
+            "fun": 1,
+        },
+        "ground_truth": [
+            "Pandemic", "팬데믹",
+            "Arkham Horror",
+            "Spirit Island", "정령섬",
+        ],
+    },
+    {
+        "name": "입문용 쉬운 보드게임",
+        "user_text": "보드게임 처음인데 쉽고 간단한 거 추천해줘",
+        "category": "boardgame",
+        "conditions": {
+            "boardgame": 2,
+            "easy": 3,
+            "fun": 1,
+        },
+        "ground_truth": [
+            "Codenames", "코드네임",
+            "Dixit", "딕싯",
+            "Dobble", "도블",
+            "Ticket to Ride", "티켓 투 라이드",
+        ],
+    },
+    {
+        "name": "쉬운 입문 머더미스터리",
+        "user_text": "6명이서 할 쉬운 입문용 머더미스터리 추천",
+        "category": "murder",
+        "conditions": {
+            "murder": 2,
+            "mystery": 2,
+            "easy": 2,
+        },
+        "ground_truth": [
+            "몇 번이고 푸른 달에 불을 붙였다",
+            "용사가 죽었다",
+            "6중주의 가면무도회",
+        ],
     },
 ]
 

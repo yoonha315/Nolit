@@ -54,6 +54,7 @@ from rank_bm25 import BM25Okapi
 # -------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "04_vectorstore"
+# DATA_DIR = PROJECT_ROOT / "data"
 
 _index = faiss.read_index(str(DATA_DIR / "faiss_murdermysterylog.index"))
 with open(DATA_DIR / "faiss_murdermysterylog_meta.json", "r", encoding="utf-8") as f:
@@ -231,7 +232,24 @@ def _metadata_weight(item: dict, query_filter: dict) -> float:
         if _contains(item_scene, query_filter["scene_category"]):
             score += 5.0
 
-    # 5. reviews 텍스트 키워드 보너스
+    # 5. 추천 인원 정확도 보너스
+    # hard_filter는 min/max 범위만 확인하므로, 여기서 인원이 "딱 맞는" 정도를 점수화
+    players = _as_int(query_filter.get("players"), default=None)
+    if players is not None:
+        min_p = _as_int(item.get("min_players"), default=None)
+        max_p = _as_int(item.get("max_players"), default=None)
+        if min_p is not None and max_p is not None and min_p > 0:
+            player_range = max_p - min_p
+            if player_range <= 2:
+                # 인원 범위가 좁으면 딱 맞는 게임 → 높은 보너스
+                score += 4.0
+            elif player_range >= 6:
+                # 인원 범위가 너무 넓으면 특화된 게임이 아닐 수 있음 → 보너스 없음
+                pass
+            else:
+                score += 2.0
+
+    # 6. reviews 텍스트 키워드 보너스
     reviews_text = _get_reviews_text(item)
     if reviews_text:
         emotion_tags = query_filter.get("emotion_tags", [])
